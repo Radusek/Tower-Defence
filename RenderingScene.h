@@ -25,6 +25,8 @@ protected:
 
 	float scale;
 
+	Font font;
+
 	friend class App;
 
 public:

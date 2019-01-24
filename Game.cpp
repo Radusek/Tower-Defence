@@ -20,7 +20,7 @@ Game::Game(App& app0) : RenderingScene(app0), wave(1), dollars(50), livesLeft(20
 	view = View(FloatRect(0.f, 0.f, viewWidth, viewHeight));
 	view.setViewport(sf::FloatRect(0.f, 0.f, 0.8f, 0.8f));
 
-	map = new Map(3);
+	map = new Map(2);
 
 	tGameInterface.loadFromFile("img/gameInterface.png");
 	gameInterface.setTexture(tGameInterface);
@@ -179,7 +179,16 @@ void Game::loadGraphicsToWindow()
 {
 
 	window->draw(gameInterface);
-	
+
+	Text moneyText;
+
+	moneyText.setFont(font);
+	moneyText.setFillColor(Color(56, 56, 56, 255));
+	moneyText.setString(std::to_string(dollars));
+	moneyText.setPosition(0.85f*scale*1920.f + scale*12.f, 0.1f*scale*1080.f - scale*6.f);
+
+	window->draw(moneyText);
+
 	if (selectedStatus == FreeCell)
 	{
 		RectangleShape towerButtonBase;

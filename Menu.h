@@ -20,7 +20,6 @@ enum Buttons
 class Menu : public RenderingScene
 {
 private:
-	Font font;
 	Text buttonText[ButtonCount];
 
 	Texture tBackground;

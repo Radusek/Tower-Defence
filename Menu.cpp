@@ -6,8 +6,6 @@
 
 Menu::Menu(App& app0) : RenderingScene(app0)
 {
-	font.loadFromFile("font/font.ttf");
-
 	// BACKGROUND
 	tBackground.loadFromFile("img/menuBackground.png");
 	background.setTexture(tBackground);
