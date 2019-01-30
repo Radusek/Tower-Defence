@@ -4,7 +4,6 @@
 #include "Tower.h"
 
 
-
 Map::Map(int levelNumber) : running(true)
 {
 	std::ifstream file("levels/level" + std::to_string(levelNumber) + ".txt");
@@ -18,12 +17,10 @@ Map::Map(int levelNumber) : running(true)
 		size = Vector2u(x, y);
 
 		boolGrid = new bool*[size.y];
-		towerGrid = new Tower**[size.y];
 
 		for (unsigned int i = 0; i < size.y; i++)
 		{
 			boolGrid[i] = new bool[size.x];
-			towerGrid[i] = new Tower*[size.x];
 		}
 
 		for (unsigned int i = 0; i < size.y; i++)
@@ -31,7 +28,6 @@ Map::Map(int levelNumber) : running(true)
 			for (unsigned int j = 0; j < size.x; j++)
 			{
 				file >>	boolGrid[i][j];
-				towerGrid[i][j] = nullptr;
 			}
 		}
 
@@ -54,15 +50,8 @@ Map::Map(int levelNumber) : running(true)
 
 Map::~Map()
 {
-	for (unsigned int i = 0; i < size.y; i++) {
-		for (unsigned int j = 0; j < size.x; j++) {
-			if (towerGrid[i][j])
-				delete towerGrid[i][j];
-		}
-		delete[] towerGrid[i];
+	for (unsigned int i = 0; i < size.y; i++) 
 		delete[] boolGrid[i];
-	}
 
-	delete[] towerGrid;
 	delete[] boolGrid;
 }

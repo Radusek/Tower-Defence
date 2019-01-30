@@ -1,7 +1,6 @@
 #include "Movable.h"
 
 
-
 Movable::Movable() : radius(0.f), velocity(0.f), acceleration(0.f)
 {
 }

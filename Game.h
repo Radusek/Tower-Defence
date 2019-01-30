@@ -3,13 +3,13 @@
 #include <cstdlib>
 #include <time.h>
 #include <vector>
-
 #include "RenderingScene.h"
 using namespace sf;
 
 class Minion;
 class Projectile;
 class Tower;
+class TextAnimation;
 class Map;
 class App;
 
@@ -18,6 +18,13 @@ enum selected
 	Path,
 	FreeCell,
 	OccupiedCell
+};
+
+enum controllers
+{
+	EKeyboard,
+	EMouse,
+	ControllersCount
 };
 
 
@@ -33,7 +40,7 @@ private:
 
 	int minionId;
 
-	bool mapScrolling[DirectionCount];
+	bool mapScrolling[ControllersCount][DirectionCount];
 
 	Vector2i selectedTile;
 	int selectedStatus;
@@ -49,9 +56,17 @@ private:
 	Texture projectileTexture;
 	std::vector<Projectile*> projectiles;
 
+	std::vector<TextAnimation*> textAnimations;
+
 
 	Texture tGameInterface;
 	Sprite gameInterface;
+
+	Tower* fakeTower;
+	bool displayFakeTower;
+
+	float zoom;
+
 
 	Map* map;
 
@@ -77,9 +92,17 @@ public:
 
 	void spawningObjects();
 
+	void placeTower(int type);
+
 	void movingObjects();
 
 	void loadGraphicsToWindow();
+
+	void printInterface();
+
+	void printButtons();
+
+	void printTiles();
 
 	void destroyingObjects();
 

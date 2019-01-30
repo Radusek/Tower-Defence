@@ -4,8 +4,6 @@
 
 using namespace sf;
 
-class Tower;
-
 class Game;
 
 
@@ -17,7 +15,6 @@ private:
 	Vector2u size;
 
 	bool** boolGrid;
-	Tower*** towerGrid;
 
 	std::vector<Vector2f> path;
 
@@ -30,4 +27,3 @@ public:
 
 	~Map();
 };
-

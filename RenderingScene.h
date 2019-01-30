@@ -1,6 +1,5 @@
 #pragma once
 #include <SFML/Graphics.hpp>
-
 using namespace sf;
 
 class App;
@@ -27,6 +26,7 @@ protected:
 
 	Font font;
 
+
 	friend class App;
 
 public:
@@ -42,7 +42,5 @@ public:
 
 	virtual void loadGraphicsToWindow() = 0;
 
-
 	virtual ~RenderingScene();
 };
-

@@ -4,12 +4,13 @@
 #include "Game.h"
 #include "Projectile.h"
 #include "Map.h"
+#include "Animation.h"
 
-Minion::Minion(Game* game0, int minionId) : game(game0), pathIndex(1), hp(MINION_BASE_HP), armor(0), type(Normal), lives(true), gotToTheEnd(false), id(minionId), angle(0.f)
+Minion::Minion(Game* game0, int minionId) : game(game0), pathIndex(1), hp(MINION_BASE_HP + 4 * int((sqrtf(game->wave)*game->wave - 1))), armor(0), type(Normal), lives(true), gotToTheEnd(false), id(minionId), angle(0.f)
 {
-	setVelocity(0.3f);
+	setVelocity(0.4f);
 		
-	radius = 16.f;
+	radius = 20.f;
 
 	Vector2f position;
 	position.x = (game->map->path[0].x + 0.5f) * game->tileSize * game->scale;
@@ -27,6 +28,8 @@ Minion::Minion(Game* game0, int minionId) : game(game0), pathIndex(1), hp(MINION
 	sprite.scale(minionScale);
 
 	sprite.setOrigin(32.f, 32.f);
+
+	animation = new Animation(0.07f / velocity, 2);
 }
 
 void Minion::move()
@@ -42,6 +45,8 @@ void Minion::move()
 	float diffX = destX - currentX;
 	float diffY = destY - currentY;
 
+	bool rotating = false;
+
 	float diffAngle = std::atan2(diffY, diffX) - angle;
 
 	if (diffAngle > M_PI)
@@ -54,14 +59,16 @@ void Minion::move()
 		diffAngle += 2.f*M_PI;
 	}
 
-	if(std::abs(diffAngle) * 180.f / M_PI < 4.f)
+	if (std::abs(diffAngle) * 180.f / M_PI < 3.f * velocity / 0.3f)
 		angle = std::atan2(diffY, diffX);
 	else
 	{
 		if (diffAngle > 0)
-			angle += M_PI / 50.f;
+			angle += velocity / 0.3f * M_PI / 70.f;
 		else
-			angle -= M_PI / 50.f;
+			angle -= velocity / 0.3f * M_PI / 70.f;
+
+		rotating = true;
 	}
 
 	float dx = game->scale*cos(angle)*velocity*tileScale;
@@ -80,7 +87,8 @@ void Minion::move()
 	}	
 
 	sprite.setRotation(angle * 180.f / M_PI);
-	sprite.move(dx, dy);
+	if(rotating == false)
+		sprite.move(dx, dy);
 }
 
 void Minion::takeHit(Projectile* projectile)
@@ -98,7 +106,37 @@ void Minion::takeHit(Projectile* projectile)
 	projectile->hit = true;
 }
 
+void Minion::showHpBar()
+{
+	float scale = game->scale;
+	int wave = game->wave;
+
+	int hpWidth = 60 * scale, hpHeight = 10 * scale;
+	int baseOutline = 2 * scale;
+
+	RectangleShape hpBarBase;
+
+	hpBarBase.setFillColor(Color::Black);
+
+	hpBarBase.setSize(Vector2f(hpWidth + 2 * baseOutline, hpHeight + 2 * baseOutline));
+	hpBarBase.setOrigin(Vector2f(hpWidth / 2 + baseOutline, hpHeight / 2 + baseOutline));
+
+
+	RectangleShape hpBar;
+
+	hpBarBase.setPosition(Vector2f(sprite.getPosition()) + Vector2f(0.f, -40.f*scale));
+	game->window->draw(hpBarBase);
+
+	float hpPercent = hp / float(MINION_BASE_HP + 4 * int((sqrtf(wave)*wave - 1)));
+
+	hpBar.setFillColor(Color(255 * (1 - hpPercent), 255 * hpPercent, 0, 255));
+	hpBar.setSize(Vector2f(hpPercent * hpWidth, hpHeight));
+
+	hpBar.setPosition(hpBarBase.getPosition() + Vector2f(-hpWidth / 2, -hpHeight / 2));
+	game->window->draw(hpBar);
+}
 
 Minion::~Minion()
 {
+	delete animation;
 }

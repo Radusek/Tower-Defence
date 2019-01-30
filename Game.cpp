@@ -1,16 +1,16 @@
 #include "Game.h"
 #include <iostream>
 
-
 #include "Tower.h"
 #include "Minion.h"
 #include "Projectile.h"
+#include "TextAnimation.h"
+#include "Animation.h"
 
 #include "Map.h"
-
 #include "App.h"
 
-Game::Game(App& app0) : RenderingScene(app0), wave(1), dollars(50), livesLeft(20), tileSize(96.f), nMinionsSpawned(0), minionId(0), mapScrolling{}, selectedTile(0, 0), selectedStatus(Path)
+Game::Game(App& app0) : RenderingScene(app0), wave(1), dollars(120), livesLeft(20), tileSize(96.f), nMinionsSpawned(0), minionId(0), mapScrolling{}, selectedTile(0, 0), selectedStatus(Path), displayFakeTower(false), zoom(1.f)
 {
 	std::srand(std::time(NULL));
 
@@ -30,6 +30,10 @@ Game::Game(App& app0) : RenderingScene(app0), wave(1), dollars(50), livesLeft(20
 	minionTexture.loadFromFile("img/minionTexture.png");
 	projectileTexture.loadFromFile("img/projectileTexture.png");
 
+	fakeTower = new Tower(this, 0);
+
+	fakeTower->sprite.setColor(Color(128, 128, 128, 255));
+
 	clock.restart();
 }
 
@@ -44,16 +48,64 @@ void Game::passEvent(Event event)
 		}
 	}
 
+	if (event.type == Event::MouseMoved) {
+		checkCursorPosition(Mouse::getPosition(*window));
+	}
+
+	if (event.type == Event::MouseWheelMoved)
+	{
+		if (event.mouseWheel.delta > 0)
+		{
+			if (zoom > 0.4f)
+			{
+				view.zoom(0.8f);
+				zoom *= 0.8f;
+			}
+		}
+		else
+		{
+			if (map->size.x * tileSize > 1920.f*0.8f*zoom*1.25f || map->size.y * tileSize > 1080.f*0.8f*zoom*1.25f)
+			{
+				view.zoom(1.25f);
+				zoom *= 1.25f;
+
+				Vector2f centerPos = view.getCenter();
+				
+				if (view.getCenter().x + view.getSize().x / 2.f > scale*(float(map->size.x)*tileSize))
+					centerPos.x = scale * (float(map->size.x)*tileSize) - view.getSize().x / 2.f;
+	
+				else if (view.getCenter().x - view.getSize().x / 2.f < 0.f)
+					centerPos.x = view.getSize().x / 2.f;
+
+				
+				if (view.getCenter().y + view.getSize().y / 2.f > scale*(float(map->size.y)*tileSize))
+					centerPos.y = scale * (float(map->size.y)*tileSize) - view.getSize().y / 2.f;
+
+				else if (view.getCenter().y - view.getSize().y / 2.f < 0.f)
+					centerPos.y = view.getSize().y / 2.f;
+
+				view.setCenter(centerPos);
+			}
+		}
+	}
+
 	if (event.type == sf::Event::KeyPressed)
 	{
 		if (event.key.code >= sf::Keyboard::Left && event.key.code <= sf::Keyboard::Down)
-			mapScrolling[event.key.code - sf::Keyboard::Left] = true;
+			mapScrolling[EKeyboard][event.key.code - sf::Keyboard::Left] = true;
+		
+		if (selectedStatus == FreeCell && event.key.code >= Keyboard::Num1 && event.key.code <= Keyboard::Num2)
+		{
+			int towerChoice = event.key.code - Keyboard::Num1;
+
+			placeTower(towerChoice);
+		}
 	}
 
 	if (event.type == sf::Event::KeyReleased)
 	{
 		if (event.key.code >= sf::Keyboard::Left && event.key.code <= sf::Keyboard::Down)
-			mapScrolling[event.key.code - sf::Keyboard::Left] = false;
+			mapScrolling[EKeyboard][event.key.code - sf::Keyboard::Left] = false;
 	}
 }
 
@@ -61,9 +113,15 @@ void Game::leftMouseClick(Vector2i pos)
 {
 	if (pos.x < 0.8f * scale * 1920.f && pos.y < 0.8f * scale * 1080.f) // klikniêto w obszar planszy
 	{
-		Vector2i clickedPoint = pos + Vector2i(view.getCenter()) - Vector2i(0.4f * 1920.f * scale, 0.4f * 1080.f * scale);
+		Vector2f clickedPoint = window->mapPixelToCoords(pos, view);
 		
-		selectedTile = clickedPoint / int(scale*tileSize);
+		if (pos.x > map->size.x * tileSize * scale || pos.y > map->size.y * tileSize * scale) // klikniecie na obszar poza polem rozgrywki
+		{
+			selectedStatus = Path;
+			return;
+		}
+
+		selectedTile = Vector2i(clickedPoint / (scale*tileSize));
 
 		if (map->boolGrid[selectedTile.y][selectedTile.x] == 0)
 		{
@@ -75,7 +133,7 @@ void Game::leftMouseClick(Vector2i pos)
 			selectedStatus = OccupiedCell;
 		}
 
-		Vector2f newPosition(scale*(float(tileSize * selectedTile.x) + tileSize / 2.f), (scale*(float(tileSize * selectedTile.y) + tileSize / 2.f)));
+		Vector2f newPosition((selectedTile.x + 0.5f) * scale * tileSize, (selectedTile.y + 0.5f) * scale * tileSize);
 		for (auto &tower : towers)
 			if (tower->sprite.getPosition() == newPosition)
 				return;
@@ -88,15 +146,38 @@ void Game::leftMouseClick(Vector2i pos)
 		int towerChoice = pos.x - 0.15f * scale * 1920.f;
 		towerChoice /= 0.1f * scale * 1920.f;
 
-		towers.push_back(new Tower(this, towerChoice));
-		towers.back()->sprite.setPosition(scale*(float(tileSize * selectedTile.x) + tileSize / 2.f), (scale*(float(tileSize * selectedTile.y) + tileSize / 2.f)));
-
-		selectedStatus = OccupiedCell;
+		placeTower(towerChoice);
 	}
 }
 
 int Game::checkCursorPosition(Vector2i pos)
 {
+	mapScrolling[EMouse][Left] = pos.x < 0.1f * scale * 1920.f;
+	mapScrolling[EMouse][Right] = pos.x >= 0.95f * scale * 1920.f;
+
+	mapScrolling[EMouse][Up] = pos.y < 0.05f * scale * 1080.f;
+	mapScrolling[EMouse][Down] = pos.y >= 0.95f * scale * 1080.f;
+
+
+	if (selectedStatus == FreeCell && pos.x < 0.35f * scale * 1920.f && pos.x >= 0.15f * scale * 1920.f && pos.y >= 0.85f * scale * 1080.f && pos.y < 0.95f * scale * 1080.f)
+	{
+		int towerType = pos.x - 0.15f * scale * 1920.f;
+		towerType /= 0.1f * scale * 1920.f;
+
+		fakeTower->type = towerType;
+
+		float towerFireRange[] = { 140.f, 180.f };
+		fakeTower->setRange(towerFireRange[towerType]);
+		fakeTower->sprite.setTextureRect(IntRect(towerType * 64, 0, 64, 64));
+		fakeTower->sprite.setPosition((selectedTile.x + 0.5f) * scale * tileSize, (selectedTile.y + 0.5f) * scale * tileSize);
+
+		displayFakeTower = true;
+	}
+	else
+	{
+		displayFakeTower = false;
+	}
+
 	return 0;
 }
 
@@ -113,8 +194,13 @@ void Game::updateLogic()
 
 void Game::cameraMoving()
 {
-	int dx = mapScrolling[Right] - mapScrolling[Left];
-	int dy = mapScrolling[Down] - mapScrolling[Up];
+	int dx = mapScrolling[EKeyboard][Right] + mapScrolling[EMouse][Right] - mapScrolling[EKeyboard][Left] - mapScrolling[EMouse][Left];
+	if (dx > 1) dx = 1;
+	if (dx < -1) dx = -1;
+
+	int dy = mapScrolling[EKeyboard][Down] + mapScrolling[EMouse][Down] - mapScrolling[EKeyboard][Up] - mapScrolling[EMouse][Up];
+	if (dy > 1) dy = 1;
+	if (dy < -1) dy = -1;
 
 	int scrollingSpeed = 3;
 
@@ -149,7 +235,7 @@ void Game::spawningObjects()
 	if (nMinionsSpawned < 3 + wave/2)
 	{
 		Time time = clock.getElapsedTime();
-		if (time.asSeconds() >= 2.f - 0.00005f * float(wave) * float(wave)) // 2 seconds spawn interval and decreasing each wave
+		if (time.asSeconds() >= 2.f - 0.00005f * float(wave) * float(wave) || minions.size() == 0) // 2 seconds spawn interval and decreasing each wave
 		{
 			minions.push_back(new Minion(this, minionId++));
 			nMinionsSpawned++;
@@ -160,10 +246,41 @@ void Game::spawningObjects()
 	{
 		nMinionsSpawned = 0;
 		wave++;
+
+		Text animText;
+
+		animText.setFont(font);
+		animText.setFillColor(Color(100, 10, 100, 255));
+		animText.setScale(scale, scale);
+		animText.setCharacterSize(96);
+
+		animText.setString("NOICE! NEXT WAVE!!!");
+		animText.setOrigin(Vector2f(animText.getLocalBounds().width / 2.f, animText.getLocalBounds().height / 2.f));
+		animText.setPosition(0.5f*1920.f*scale, 0.2f*1080.f*scale);
+
+		float direction = rand()%360;
+		float rotation = 0.2f - (rand()%5)/10.f;
+		float velocity = 0.5f;
+
+		textAnimations.push_back(new TextAnimation(animText, direction, rotation, velocity, scale, seconds(3.f)));
 	}
 
 	for (auto &tower : towers)
 		tower->fire();
+}
+
+void Game::placeTower(int type)
+{
+	if (dollars >= Tower::TowerCost[type])
+	{
+		towers.push_back(new Tower(this, type));
+		towers.back()->sprite.setPosition((selectedTile.x + 0.5f) * scale * tileSize, (selectedTile.y + 0.5f) * scale * tileSize);
+
+		dollars -= Tower::TowerCost[type];
+
+		selectedStatus = OccupiedCell;
+		displayFakeTower = false;
+	}
 }
 
 void Game::movingObjects()
@@ -173,32 +290,117 @@ void Game::movingObjects()
 
 	for (auto &projectile : projectiles)
 		projectile->move();
+
+	for (auto &anim : textAnimations)
+		anim->update();
 }
 
 void Game::loadGraphicsToWindow()
 {
+	printTiles();
+
+	window->setView(view);
+
+	for (auto &tower : towers)
+	{
+		tower->sprite.setTextureRect(IntRect(tower->type * 64, 0, 64, 64));
+		window->draw(tower->sprite);	
+	}
+
+	if (displayFakeTower)
+	{
+		window->draw(fakeTower->sprite);
+		fakeTower->showRange();
+	}
+
+	for (auto &projectile : projectiles)
+	{
+		projectile->sprite.setTextureRect(IntRect(projectile->type * 64, 0, 64, 64));
+		window->draw(projectile->sprite);
+	}
+
+	for (auto &minion : minions)
+	{
+		minion->sprite.setTextureRect(IntRect(minion->type * 64, minion->animation->getFrame() * 64, 64, 64));
+		window->draw(minion->sprite);
+		minion->showHpBar();
+	}
+
+	for (auto &anim : textAnimations)
+	{
+		window->draw(anim->text);
+	}
+
+	// selected tower range visualization
+	if (selectedStatus == OccupiedCell)
+	{
+		for (auto &tower : towers)
+		{
+			if (tower->sprite.getPosition() == Vector2f((selectedTile.x + 0.5f) * scale * tileSize, (selectedTile.y + 0.5f) * scale * tileSize))
+			{
+				tower->showRange();
+				break;
+			}
+		}
+	}
+
+	window->setView(window->getDefaultView());
+
+
+	printInterface();
+
+	printButtons();
+}
+
+void Game::printInterface()
+{
 
 	window->draw(gameInterface);
 
-	Text moneyText;
+	Text interfaceText;
 
-	moneyText.setFont(font);
-	moneyText.setFillColor(Color(56, 56, 56, 255));
-	moneyText.setString(std::to_string(dollars));
-	moneyText.setPosition(0.85f*scale*1920.f + scale*12.f, 0.1f*scale*1080.f - scale*6.f);
+	interfaceText.setFont(font);
+	interfaceText.setScale(scale, scale);
+	interfaceText.setCharacterSize(60);
+	interfaceText.setFillColor(Color(56, 56, 56, 255));
 
-	window->draw(moneyText);
+	Vector2f startingPoint(0.85f*scale*1920.f + scale * 12.f, 0.1f*scale*1080.f - 0.25f*60.f*scale);
+	Vector2f offset(0.f, 0.1213f*scale*1080.f);
 
+	// Money
+	interfaceText.setString(std::to_string(dollars));
+	interfaceText.setPosition(startingPoint);
+	window->draw(interfaceText);
+
+	// Wave number
+	interfaceText.setString(std::to_string(wave));
+	interfaceText.move(offset);
+	window->draw(interfaceText);
+
+	// Lives
+	interfaceText.setString(std::to_string(livesLeft));
+	interfaceText.move(offset);
+	window->draw(interfaceText);
+
+	// Minions left
+	interfaceText.setString(std::to_string(3 + wave / 2 - nMinionsSpawned));
+	interfaceText.move(offset);
+	window->draw(interfaceText);
+}
+
+void Game::printButtons()
+{
 	if (selectedStatus == FreeCell)
 	{
 		RectangleShape towerButtonBase;
 		towerButtonBase.setFillColor(Color(200, 200, 20, 150));
 
-		towerButtonBase.setSize(Vector2f(0.1f*scale*1920.f, 0.1f*scale*1080.f));
+		towerButtonBase.setSize(Vector2f(0.1f*1920.f, 0.1f*1080.f));
+		towerButtonBase.setScale(scale, scale);
 
 		towerButtonBase.setOutlineThickness(2.f);
 		towerButtonBase.setOutlineColor(Color::Black);
-		
+
 
 		for (int i = 0; i < 2; i++)
 		{
@@ -209,25 +411,73 @@ void Game::loadGraphicsToWindow()
 
 			Sprite s(towerTexture);
 			s.setTextureRect(IntRect(i * 64, 0, 64, 64));
-			s.setPosition(pos);
+			s.setPosition(pos + Vector2f(5.f*scale, 0.f));
 			s.setScale(tileSize / 64.f * scale, tileSize / 64.f * scale);
 			window->draw(s);
+
+			Text cost;
+
+			cost.setFont(font);
+			cost.setScale(scale, scale);
+			cost.setCharacterSize(36);
+			cost.setFillColor(Color::Black);
+			cost.setString(std::to_string(Tower::TowerCost[i]) + "$");
+			cost.setPosition(pos + Vector2f(107.f*scale, 25.f*scale));
+
+			window->draw(cost);
+
+			Text key;
+
+			key.setFont(font);
+			key.setScale(scale, scale);
+			key.setCharacterSize(30);
+			key.setFillColor(Color::Black);
+			key.setString("[" + std::to_string(i+1) + "]");
+			key.setPosition(pos + Vector2f(10.f*scale, 69.f*scale));
+
+			window->draw(key);
+
+			if (dollars < Tower::TowerCost[i])
+			{
+				RectangleShape rect;
+
+				rect.setFillColor(Color(0, 0, 0, 150));
+				rect.setSize(Vector2f(0.1f*1920.f, 0.1f*1080.f));
+				rect.setScale(scale, scale);
+				rect.setPosition(pos);
+
+				window->draw(rect);
+			}
 		}
 	}
+}
 
+void Game::printTiles()
+{
 	float offsetX = tileSize / 2.f, offsetY = tileSize / 2.f;
-	Color color[2] = { {200, 200, 200, 255}, {100, 100, 100, 255} };
+	Color color[2] = { {165, 132, 33, 255}, {100, 100, 100, 255} };
+	float outlineThickness[2] = { 0.f, 1.f };
 
 	for (unsigned int i = 0; i < map->size.y; i++)
 	{
 		for (unsigned int j = 0; j < map->size.x; j++)
 		{
-			RectangleShape rect(Vector2f(tileSize, tileSize));
-			rect.setPosition(scale*(offsetX + j*tileSize), scale*(offsetY + i*tileSize));
-			rect.setOrigin(tileSize / 2.f, tileSize / 2.f);
-			
-			rect.setFillColor(color[map->boolGrid[i][j]]);
+			bool tileType = map->boolGrid[i][j];
+
+			float rectSize = tileSize - 2 * outlineThickness[tileType];
+			RectangleShape rect(Vector2f(rectSize, rectSize));
 			rect.setScale(scale, scale);
+
+			float posX = scale * (offsetX  + j * tileSize);
+			float posY = scale * (offsetY  + i * tileSize);
+			
+			rect.setPosition(posX, posY);
+			rect.setOrigin(rectSize / 2.f, rectSize / 2.f);
+
+			rect.setOutlineColor(Color::Black);
+			rect.setOutlineThickness(outlineThickness[tileType]);
+
+			rect.setFillColor(color[tileType]);
 
 			window->setView(view);
 			window->draw(rect);
@@ -245,55 +495,6 @@ void Game::loadGraphicsToWindow()
 		window->setView(view);
 		window->draw(selection);
 	}
-
-	for (auto &tower : towers)
-	{
-		tower->sprite.setTextureRect(IntRect(tower->type * 64, 0, 64, 64));
-		window->setView(view);
-		window->draw(tower->sprite);	
-	}
-
-	for (auto &projectile : projectiles)
-	{
-		projectile->sprite.setTextureRect(IntRect(projectile->type * 64, 0, 64, 64));
-		window->setView(view);
-		window->draw(projectile->sprite);
-	}
-
-	{ // drawing minions with hp bars
-		int hpWidth = 60 * scale, hpHeight = 10 * scale;
-		int baseOutline = 2;
-
-		RectangleShape hpBarBase;
-		hpBarBase.setFillColor(Color::Black);
-
-		hpBarBase.setSize(Vector2f(hpWidth + 2 * baseOutline, hpHeight + 2 * baseOutline));
-		hpBarBase.setOrigin(Vector2f(hpWidth / 2 + baseOutline, hpHeight / 2 + baseOutline));
-
-		RectangleShape hpBar;
-		
-
-		for (auto &minion : minions)
-		{
-			minion->sprite.setTextureRect(IntRect(minion->type * 64, 0, 64, 64));
-			window->setView(view);
-			window->draw(minion->sprite);
-
-			hpBarBase.setPosition(Vector2f(minion->sprite.getPosition()) + Vector2f(0.f, -40.f*scale));
-			window->draw(hpBarBase);
-
-			float hpPercent = minion->hp / float(MINION_BASE_HP);
-
-			hpBar.setFillColor(Color(255 * (1 - hpPercent),255 * hpPercent, 0, 255));
-			hpBar.setSize(Vector2f(hpPercent * hpWidth, hpHeight));
-			
-			hpBar.setPosition(hpBarBase.getPosition() + Vector2f(-hpWidth/2, -hpHeight/2));
-			window->draw(hpBar);
-		}
-	}
-
-
-	window->setView(window->getDefaultView());
 }
 
 void Game::destroyingObjects()
@@ -301,11 +502,36 @@ void Game::destroyingObjects()
 	int vectorSize = minions.size();
 	for (int i = 0; i < vectorSize; i++)
 	{
-		if (minions[i]->gotToTheEnd)
-			livesLeft--;
-
 		if (minions[i]->lives == false)
 		{
+			bool killed = !minions[i]->gotToTheEnd; // false when got to the end, true if killed by a tower
+			int reward = 18 + wave/3;
+
+			if (killed)
+			{
+				dollars += reward;
+
+				Text animText;
+
+				animText.setFont(font);
+				animText.setFillColor(Color(10, 100, 10, 255));
+				animText.setScale(scale, scale);
+				animText.setCharacterSize(48);
+
+				animText.setString("+" + std::to_string(reward) + "$");
+				animText.setOrigin(Vector2f(animText.getLocalBounds().width / 2.f, animText.getLocalBounds().height / 2.f));
+				animText.setPosition(minions[i]->sprite.getPosition());
+
+
+				float upDirection = -M_PI / 2.f;
+				float rotation = 0.f;
+				float velocity = 0.4f;
+
+				textAnimations.push_back(new TextAnimation(animText, upDirection, rotation, velocity, scale, seconds(1.f)));
+			}
+			else	
+				livesLeft--;
+
 			delete minions[i];
 			minions.erase(minions.begin() + i);
 			i--;
@@ -324,8 +550,19 @@ void Game::destroyingObjects()
 			vectorSize--;
 		}
 	}
-}
 
+	vectorSize = textAnimations.size();
+	for (int i = 0; i < vectorSize; i++)
+	{
+		if (textAnimations[i]->finished())
+		{
+			delete textAnimations[i];
+			textAnimations.erase(textAnimations.begin() + i);
+			i--;
+			vectorSize--;
+		}
+	}
+}
 
 Game::~Game()
 {
@@ -340,6 +577,8 @@ Game::~Game()
 	for (auto &t : towers)
 		delete t;
 	towers.clear();
+
+	delete fakeTower;
 
 	delete map;
 }

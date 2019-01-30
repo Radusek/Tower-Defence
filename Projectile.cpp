@@ -6,7 +6,7 @@
 #include "Map.h"
 
 
-Projectile::Projectile(Game* game0, Minion*& target0, int type0, int damage0, int armorPenetration0, int velocity0, Vector2f position) :
+Projectile::Projectile(Game* game0, Minion*& target0, int type0, int damage0, int armorPenetration0, float velocity0, Vector2f position) :
 	game(game0), target(target0), type(type0), damage(damage0), armorPenetration(armorPenetration0), guided(false), hit(false)
 {
 	velocity = velocity0;

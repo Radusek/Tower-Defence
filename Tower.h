@@ -1,6 +1,5 @@
 #pragma once
 #include <SFML/Graphics.hpp>
-
 using namespace sf;
 
 class Game;
@@ -35,6 +34,7 @@ private:
 
 	static const float TowerProjectileSpeed[TowerTypeCount];
 
+
 	Game* game;
 
 
@@ -54,11 +54,13 @@ private:
 	friend class Game;
 
 public:
-
 	Tower(Game* game0, int type0);
 
 	void fire();
 
+	void showRange();
+
+	void setRange(float range);
+
 	~Tower();
 };
-

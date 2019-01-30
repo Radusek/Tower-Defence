@@ -4,10 +4,11 @@
 
 #define M_PI 3.14159265359f
 
-#define MINION_BASE_HP 15
+#define MINION_BASE_HP 12
 
 class Game;
 class Projectile;
+class Animation;
 
 enum MinionType
 {
@@ -33,6 +34,8 @@ private:
 
 	Sprite sprite;
 
+	Animation* animation;
+
 	friend class Game;
 	friend class Projectile;
 	friend class Tower;
@@ -45,6 +48,7 @@ public:
 
 	void takeHit(Projectile* projectile);
 
+	void showHpBar();
+
 	~Minion();
 };
-

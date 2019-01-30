@@ -115,7 +115,6 @@ void Menu::loadGraphicsToWindow()
 	}
 }
 
-
 Menu::~Menu()
 {
 }

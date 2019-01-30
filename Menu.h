@@ -7,14 +7,12 @@
 
 #define BUTTON_GAP_Y (BUTTON_SIZE_Y / 2.f)
 
-
 enum Buttons
 {
 	EPlay,
 	EExit,
 	ButtonCount
 };
-
 
 
 class Menu : public RenderingScene
@@ -28,9 +26,7 @@ private:
 	Texture tButton;
 	Sprite buttons[ButtonCount];
 
-
 	float y0; // y postion of the first button
-
 
 public:
 	Menu(App& app0);
@@ -48,4 +44,3 @@ public:
 
 	~Menu();
 };
-

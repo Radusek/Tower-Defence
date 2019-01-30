@@ -1,11 +1,6 @@
 #pragma once
 #include <SFML/Graphics.hpp>
-
-
 using namespace sf;
-
-
-
 
 class RenderingScene;
 
@@ -15,7 +10,6 @@ enum scenes
 	EGame,
 	ScenesCount
 };
-
 
 
 class App
@@ -31,7 +25,6 @@ private:
 public:
 	App();
 
-
 	void run();
 
 	void listenForInput();
@@ -39,7 +32,6 @@ public:
 	void sceneChanging();
 
 	void updateScreen();
-
 
 	~App();
 };

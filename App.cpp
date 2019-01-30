@@ -83,7 +83,6 @@ void App::updateScreen()
 	window.display();
 }
 
-
 App::~App()
 {
 	for (auto scene : scenes)

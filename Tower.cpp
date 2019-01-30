@@ -4,15 +4,15 @@
 #include "Minion.h"
 #include "Projectile.h"
 
-const int Tower::TowerCost[] = { 20, 30 };
+const int Tower::TowerCost[] = { 100, 125 };
 
 const int Tower::TowerDamage[] = {3, 7};
 const int Tower::TowerArmorPenetration[] = {1, 0};
 
-const float Tower::TowerFireRate[] = {0.8f, 1.4f}; // reload time [s]
-const float Tower::TowerFireRange[] = { 140.f, 185.f }; // !WITHOUT SCALING! needs to be done elsewhere
+const float Tower::TowerFireRate[] = {0.4f, 1.4f}; // reload time [s]
+const float Tower::TowerFireRange[] = { 140.f, 180.f }; // !WITHOUT SCALING! needs to be done elsewhere
 
-const float Tower::TowerProjectileSpeed[] = {2.8f, 0.1f};
+const float Tower::TowerProjectileSpeed[] = {2.5f, 0.1f};
 
 
 
@@ -69,7 +69,27 @@ void Tower::fire()
 	}
 }
 
+void Tower::showRange()
+{
+	float r = fireRange * game->scale * game->tileSize / 64.f;
+	CircleShape rangeCircle;
 
+	rangeCircle.setRadius(r);
+	rangeCircle.setOrigin(r, r);
+	rangeCircle.setPosition(sprite.getPosition());
+
+	rangeCircle.setFillColor(Color(0, 200, 0, 15));
+	rangeCircle.setOutlineColor(Color(0, 0, 0, 255));
+
+	rangeCircle.setOutlineThickness(1.5f * game->scale);
+
+	game->window->draw(rangeCircle);
+}
+
+void Tower::setRange(float range)
+{
+	fireRange = range;
+}
 
 Tower::~Tower()
 {
