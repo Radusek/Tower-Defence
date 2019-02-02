@@ -10,7 +10,7 @@ Minion::Minion(Game* game0, int minionId) : game(game0), pathIndex(1), hp(MINION
 {
 	setVelocity(0.4f);
 		
-	radius = 20.f;
+	radius = 32.f;
 
 	Vector2f position;
 	position.x = (game->map->path[0].x + 0.5f) * game->tileSize * game->scale;

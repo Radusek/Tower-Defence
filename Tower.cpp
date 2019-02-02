@@ -44,27 +44,35 @@ Tower::Tower(Game* game0, int type0) : upgrades{}, game(game0)
 
 void Tower::fire()
 {
-	Time timeFromLastShot = clock.getElapsedTime();
-	for (auto &minion : game->minions)
+	if (game->isPaused)
+		clock.restart();
+	else
 	{
-		float diffX = sprite.getPosition().x - minion->sprite.getPosition().x;
-		float diffY = sprite.getPosition().y - minion->sprite.getPosition().y;
+		timeFromLastShot += clock.restart();
 
-		if (sqrtf(diffX*diffX + diffY*diffY) <= fireRange * game->tileSize/64.f * game->scale)
+		for (auto &minion : game->minions)
 		{
+			float diffX = sprite.getPosition().x - minion->sprite.getPosition().x;
+			float diffY = sprite.getPosition().y - minion->sprite.getPosition().y;
 
-			float diffX = minion->sprite.getPosition().x - sprite.getPosition().x;
-			float diffY = minion->sprite.getPosition().y - sprite.getPosition().y;
-
-			float angle = std::atan2(diffY, diffX);
-			sprite.setRotation(angle * 180.f / M_PI);
-
-			if (timeFromLastShot.asSeconds() >= fireRate)
+			if (sqrtf(diffX*diffX + diffY*diffY) <= fireRange * game->tileSize/64.f * game->scale)
 			{
-				game->projectiles.push_back(new Projectile(game, minion, type, damage, armorPenetration, TowerProjectileSpeed[type], sprite.getPosition()));
-				clock.restart();
+
+				float diffX = minion->sprite.getPosition().x - sprite.getPosition().x;
+				float diffY = minion->sprite.getPosition().y - sprite.getPosition().y;
+
+				float angle = std::atan2(diffY, diffX);
+				sprite.setRotation(angle * 180.f / M_PI);
+
+				if (timeFromLastShot.asSeconds() >= fireRate)
+				{
+					game->projectiles.push_back(new Projectile(game, minion, type, damage, armorPenetration, TowerProjectileSpeed[type], sprite.getPosition()));
+					timeFromLastShot = seconds(0.f);
+				}
+
+			
+				return;
 			}
-			return;
 		}
 	}
 }

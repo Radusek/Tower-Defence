@@ -13,6 +13,7 @@ private:
 	float scale;
 
 	Clock clock;
+	Time timeElapsed;
 	Time animDuration;
 
 	friend class Game;
@@ -20,7 +21,7 @@ private:
 public:
 	TextAnimation(Text text0, float angle0, float rotation0, float velocity0, float scale0, Time animDuration0);
 
-	void update();
+	void update(bool isPaused);
 
 	bool finished();
 

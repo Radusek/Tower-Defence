@@ -32,6 +32,8 @@ class Game : public RenderingScene
 {
 private:
 
+	bool isPaused;
+
 	int wave;
 	int nMinionsSpawned;
 	int dollars;
@@ -45,6 +47,7 @@ private:
 	Vector2i selectedTile;
 	int selectedStatus;
 
+	Time time;
 	Clock clock;
 
 	Texture towerTexture;
@@ -57,6 +60,9 @@ private:
 	std::vector<Projectile*> projectiles;
 
 	std::vector<TextAnimation*> textAnimations;
+
+	RectangleShape pauseRect;
+	Text pauseText;
 
 
 	Texture tGameInterface;
@@ -95,6 +101,10 @@ public:
 	void placeTower(int type);
 
 	void movingObjects();
+
+	void staticCollision();
+
+	bool isColliding(Minion* m1, Minion* m2);
 
 	void loadGraphicsToWindow();
 

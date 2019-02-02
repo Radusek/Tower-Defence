@@ -4,6 +4,11 @@
 #include "Tower.h"
 #include "Game.h"
 #include "Map.h"
+#include "Animation.h"
+
+
+const int Projectile::ProjectileAnimationFrames[] = { 1, 5 };
+
 
 
 Projectile::Projectile(Game* game0, Minion*& target0, int type0, int damage0, int armorPenetration0, float velocity0, Vector2f position) :
@@ -25,14 +30,14 @@ Projectile::Projectile(Game* game0, Minion*& target0, int type0, int damage0, in
 	}
 
 	Vector2f projectileScale;
-	projectileScale.x = float(target->game->tileSize / 96.f);
-	projectileScale.y = float(target->game->tileSize / 96.f);
+	projectileScale.x = float(game->tileSize / 96.f);
+	projectileScale.y = float(game->tileSize / 96.f);
 
 	radius = 10.f;
 
-	sprite.setTexture(target->game->projectileTexture);
+	sprite.setTexture(game->projectileTexture);
 
-	sprite.setScale(target->game->scale, target->game->scale);
+	sprite.setScale(game->scale, game->scale);
 	sprite.scale(projectileScale);
 
 	sprite.setOrigin(32.f, 32.f);
@@ -49,6 +54,8 @@ Projectile::Projectile(Game* game0, Minion*& target0, int type0, int damage0, in
 	movementIteration.y /= -length;
 
 	targetId = target->id;
+
+	animation = new Animation(0.02f, Projectile::ProjectileAnimationFrames[type]);
 }
 
 void Projectile::move()
@@ -123,4 +130,5 @@ void Projectile::chase(Minion *& target)
 
 Projectile::~Projectile()
 {
+	delete animation;
 }

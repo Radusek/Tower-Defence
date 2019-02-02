@@ -5,6 +5,7 @@ using namespace sf;
 class Animation
 {
 private:
+	Time time;
 	Clock clock;
 
 	float animDuration; // [seconds]
@@ -14,7 +15,7 @@ private:
 public:
 	Animation(float animDuration0, int nFrames0);
 
-	int getFrame();
+	int getFrame(bool isPaused);
 
 	~Animation();
 };

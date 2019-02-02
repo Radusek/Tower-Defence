@@ -49,6 +49,7 @@ private:
 
 	Sprite sprite;
 
+	Time timeFromLastShot;
 	Clock clock;
 
 	friend class Game;

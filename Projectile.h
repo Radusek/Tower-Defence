@@ -5,10 +5,21 @@
 
 class Game;
 class Minion;
+class Animation;
+
+enum ProjectileType
+{
+	EBow,
+	EMissile,
+	ETowerTypeCount
+};
 
 class Projectile : public Movable
 {
 private:
+	static const int ProjectileAnimationFrames[ETowerTypeCount];
+
+
 	Game* game;
 
 	Minion*& target;
@@ -26,6 +37,8 @@ private:
 	Vector2f movementIteration;
 
 	Sprite sprite;
+
+	Animation* animation;
 
 	friend class Game;
 	friend class Minion;

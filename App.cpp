@@ -1,13 +1,60 @@
 #include "App.h"
 #include <iostream>
+#include <fstream>
 
 #include "Game.h"
 #include "Menu.h"
 
 
-//App::App() : window(VideoMode(1280, 720), "El Turret Defenso!", Style::Titlebar | Style::Close), sceneIndex(EMenu)
-App::App() : window(VideoMode::getDesktopMode(), "El Turret Defenso!", Style::Fullscreen), sceneIndex(EMenu)
+App::App() : sceneIndex(EMenu)
 {
+	VideoMode mode = VideoMode::getDesktopMode();
+
+	bool fullscreen = false;
+
+	std::ifstream file("config/startup.txt");
+
+	if (file.is_open())
+	{
+		std::string s;
+
+		file >> s;
+		file >> fullscreen;
+
+		if (fullscreen == false)
+		{
+			file >> s;
+			file >> mode.width;
+
+			file >> s;
+			file >> mode.height;
+		}
+
+		file.close();
+	}
+
+	unsigned int screenWidth = mode.width, screenHeight = mode.height;
+	int ratio = (100 * screenWidth) / screenHeight;
+
+	if (ratio != 177) // is not 16:9 resolution
+	{
+		if (ratio > 177) // wider native resolution
+		{
+			mode.width = 16.f / 9.f * mode.height;
+		}
+		else // narrow native resolution
+		{
+			mode.height = 9.f / 16.f * mode.width;
+		}
+	}
+
+
+
+	if(fullscreen && ratio == 177)
+		window.create(mode, "El Turret Defenso!", Style::Fullscreen);
+	else
+		window.create(mode, "El Turret Defenso!", Style::Titlebar | Style::Close);
+
 	scenes[EMenu] = new Menu(*this);
 	scenes[EGame] = nullptr;
 

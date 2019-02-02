@@ -10,7 +10,7 @@
 #include "Map.h"
 #include "App.h"
 
-Game::Game(App& app0) : RenderingScene(app0), wave(1), dollars(120), livesLeft(20), tileSize(96.f), nMinionsSpawned(0), minionId(0), mapScrolling{}, selectedTile(0, 0), selectedStatus(Path), displayFakeTower(false), zoom(1.f)
+Game::Game(App& app0) : RenderingScene(app0), wave(1), dollars(120), livesLeft(20), tileSize(96.f), nMinionsSpawned(0), minionId(0), mapScrolling{}, selectedTile(0, 0), selectedStatus(Path), displayFakeTower(false), zoom(1.f), isPaused(false)
 {
 	std::srand(std::time(NULL));
 
@@ -33,6 +33,17 @@ Game::Game(App& app0) : RenderingScene(app0), wave(1), dollars(120), livesLeft(2
 	fakeTower = new Tower(this, 0);
 
 	fakeTower->sprite.setColor(Color(128, 128, 128, 255));
+
+	pauseRect.setSize(Vector2f(0.8f*1920.f, 0.8f*1080.f));
+	pauseRect.setScale(scale, scale);
+	pauseRect.setFillColor(Color(0, 0, 0, 140));
+
+	pauseText.setFont(font);
+	pauseText.setScale(scale, scale);
+	pauseText.setCharacterSize(72);
+	pauseText.setPosition(0.4f * scale * 1920.f, 0.4f * scale * 1080.f);
+	pauseText.setString("PAUSE");
+	pauseText.setOrigin(pauseText.getLocalBounds().width / 2, pauseText.getLocalBounds().height / 2 + 30);
 
 	clock.restart();
 }
@@ -64,7 +75,7 @@ void Game::passEvent(Event event)
 		}
 		else
 		{
-			if (map->size.x * tileSize > 1920.f*0.8f*zoom*1.25f || map->size.y * tileSize > 1080.f*0.8f*zoom*1.25f)
+			if (map->size.x * tileSize >= 1920.f*0.8f*zoom*1.25f - 0.1f && map->size.y * tileSize >= 1080.f*0.8f*zoom*1.25f - 0.1f)
 			{
 				view.zoom(1.25f);
 				zoom *= 1.25f;
@@ -100,6 +111,9 @@ void Game::passEvent(Event event)
 
 			placeTower(towerChoice);
 		}
+
+		if (event.key.code == Keyboard::P)
+			isPaused = !isPaused;
 	}
 
 	if (event.type == sf::Event::KeyReleased)
@@ -184,10 +198,12 @@ int Game::checkCursorPosition(Vector2i pos)
 void Game::updateLogic()
 {
 	cameraMoving();
-
+	
 	spawningObjects();
 
 	movingObjects();
+
+	staticCollision();
 	
 	destroyingObjects();
 }
@@ -204,7 +220,7 @@ void Game::cameraMoving()
 
 	int scrollingSpeed = 3;
 
-	for (int i = 0; i < scrollingSpeed; i++)
+	for (int i = 0; i < scrollingSpeed * zoom; i++)
 	{
 		if (dx > 0)
 		{
@@ -234,12 +250,18 @@ void Game::spawningObjects()
 {
 	if (nMinionsSpawned < 3 + wave/2)
 	{
-		Time time = clock.getElapsedTime();
-		if (time.asSeconds() >= 2.f - 0.00005f * float(wave) * float(wave) || minions.size() == 0) // 2 seconds spawn interval and decreasing each wave
-		{
-			minions.push_back(new Minion(this, minionId++));
-			nMinionsSpawned++;
+		if (isPaused)
 			clock.restart();
+		else
+		{
+			time += clock.restart();
+			float spawnInterval = 2.f - 0.00005f * float(wave) * float(wave);
+			if (time.asSeconds() >= spawnInterval || minions.size() == 0) // 2 seconds spawn interval and decreasing each wave
+			{
+				minions.push_back(new Minion(this, minionId++));
+				nMinionsSpawned++;
+				time = seconds(0.f);
+			}
 		}
 	}
 	else if (minions.size() == 0)
@@ -285,14 +307,78 @@ void Game::placeTower(int type)
 
 void Game::movingObjects()
 {
-	for (auto &minion : minions)
-		minion->move();
+	if (!isPaused)
+	{
+		for (auto &minion : minions)
+		{
+			minion->move();
+			minion->sprite.setTextureRect(IntRect(minion->type * 64, minion->animation->getFrame(isPaused) * 64, 64, 64));
+		}
 
-	for (auto &projectile : projectiles)
-		projectile->move();
+		for (auto &projectile : projectiles)
+		{
+			projectile->move();
+			projectile->sprite.setTextureRect(IntRect(projectile->type * 64, projectile->animation->getFrame(isPaused) * 64, 64, 64));
+		}
+	}
 
+	
 	for (auto &anim : textAnimations)
-		anim->update();
+	{
+		anim->update(isPaused);
+	}
+
+	if (!isPaused)
+	{
+		for (auto &tower : towers)
+		{
+			tower->sprite.setTextureRect(IntRect(tower->type * 64, 0, 64, 64));
+		}
+	}
+}
+
+void Game::staticCollision()
+{
+	for (auto &m1 : minions)
+	{
+		for (auto &m2 : minions)
+		{
+			if (m1->id != m2->id && (m1->lives && m2->lives) && isColliding(m1, m2))
+			{
+				Vector2f pos1 = m1->sprite.getPosition();
+				Vector2f pos2 = m2->sprite.getPosition();
+
+				float distance = sqrtf((pos1.x - pos2.x)*(pos1.x - pos2.x) + (pos1.y - pos2.y)*(pos1.y - pos2.y));
+
+				if (distance != 0.f)
+				{
+					float overlap = 0.5f * (distance - m1->radius - m2->radius);
+
+					Vector2f pos1copy = pos1;
+
+					pos1copy.x -= overlap * (pos1.x - pos2.x) / distance;
+					pos1copy.y -= overlap * (pos1.y - pos2.y) / distance;
+
+					pos2.x -= overlap * (pos2.x - pos1.x) / distance;
+					pos2.y -= overlap * (pos2.y - pos1.y) / distance;
+
+					m1->sprite.setPosition(pos1copy);
+					m2->sprite.setPosition(pos2);
+				}
+			}
+		}
+	}
+}
+
+bool Game::isColliding(Minion* m1, Minion* m2)
+{
+	Vector2f pos1 = m1->sprite.getPosition();
+	Vector2f pos2 = m2->sprite.getPosition();
+
+	float distance = sqrtf((pos1.x - pos2.x)*(pos1.x - pos2.x) + (pos1.y - pos2.y)*(pos1.y - pos2.y));
+	float twoTimesRadius = m1->radius + m2->radius;
+
+	return distance < twoTimesRadius;
 }
 
 void Game::loadGraphicsToWindow()
@@ -315,13 +401,13 @@ void Game::loadGraphicsToWindow()
 
 	for (auto &projectile : projectiles)
 	{
-		projectile->sprite.setTextureRect(IntRect(projectile->type * 64, 0, 64, 64));
+		projectile->sprite.setTextureRect(IntRect(projectile->type * 64, projectile->animation->getFrame(isPaused) * 64, 64, 64));
 		window->draw(projectile->sprite);
 	}
 
 	for (auto &minion : minions)
 	{
-		minion->sprite.setTextureRect(IntRect(minion->type * 64, minion->animation->getFrame() * 64, 64, 64));
+		minion->sprite.setTextureRect(IntRect(minion->type * 64, minion->animation->getFrame(isPaused) * 64, 64, 64));
 		window->draw(minion->sprite);
 		minion->showHpBar();
 	}
@@ -354,7 +440,6 @@ void Game::loadGraphicsToWindow()
 
 void Game::printInterface()
 {
-
 	window->draw(gameInterface);
 
 	Text interfaceText;
@@ -365,27 +450,18 @@ void Game::printInterface()
 	interfaceText.setFillColor(Color(56, 56, 56, 255));
 
 	Vector2f startingPoint(0.85f*scale*1920.f + scale * 12.f, 0.1f*scale*1080.f - 0.25f*60.f*scale);
+	interfaceText.setPosition(startingPoint);
+
 	Vector2f offset(0.f, 0.1213f*scale*1080.f);
 
-	// Money
-	interfaceText.setString(std::to_string(dollars));
-	interfaceText.setPosition(startingPoint);
-	window->draw(interfaceText);
+	int value[] = { dollars, wave, livesLeft, 3 + wave / 2 - nMinionsSpawned };
 
-	// Wave number
-	interfaceText.setString(std::to_string(wave));
-	interfaceText.move(offset);
-	window->draw(interfaceText);
-
-	// Lives
-	interfaceText.setString(std::to_string(livesLeft));
-	interfaceText.move(offset);
-	window->draw(interfaceText);
-
-	// Minions left
-	interfaceText.setString(std::to_string(3 + wave / 2 - nMinionsSpawned));
-	interfaceText.move(offset);
-	window->draw(interfaceText);
+	for (int i = 0; i < 4; i++)
+	{
+		interfaceText.setString(std::to_string(value[i]));
+		window->draw(interfaceText);
+		interfaceText.move(offset);
+	}
 }
 
 void Game::printButtons()
@@ -450,6 +526,13 @@ void Game::printButtons()
 			}
 		}
 	}
+
+	if (isPaused)
+	{
+		window->draw(pauseRect);
+		window->draw(pauseText);
+	}
+
 }
 
 void Game::printTiles()

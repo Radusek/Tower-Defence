@@ -7,9 +7,12 @@ Animation::Animation(float animDuration0, int nFrames0) : animDuration(animDurat
 	clock.restart();
 }
 
-int Animation::getFrame()
+int Animation::getFrame(bool isPaused)
 {
-	Time time = clock.getElapsedTime();
+	if (isPaused)
+		clock.restart();
+	else
+		time += clock.restart();
 
 	int frame = time.asSeconds() / animDuration / float(nFrames);
 	frame %= nFrames;
