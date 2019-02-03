@@ -565,7 +565,6 @@ void Game::printButtons()
 	if (selectedStatus == OccupiedCell)
 	{
 		RectangleShape sellButton;
-		sellButton.setScale(scale, scale);
 
 		Vector2f pos = { 0.05f*scale*1920.f, 0.85f*scale*1080.f };
 
