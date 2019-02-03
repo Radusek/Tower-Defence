@@ -14,9 +14,10 @@ const float Tower::TowerFireRange[] = { 140.f, 180.f }; // !WITHOUT SCALING! nee
 
 const float Tower::TowerProjectileSpeed[] = {2.5f, 0.1f};
 
+const int Tower::TowerUpgradeCost[] = { 75, 50, 65, 100 };
 
 
-Tower::Tower(Game* game0, int type0) : upgrades{}, game(game0)
+Tower::Tower(Game* game0, int type0) : upgrades{}, game(game0), sold(false)
 {
 	type = type0;
 
@@ -48,7 +49,7 @@ void Tower::fire()
 		clock.restart();
 	else
 	{
-		timeFromLastShot += clock.restart();
+		timeFromLastShot += seconds(game->timeScale[game->timeIndex] * clock.restart().asSeconds());
 
 		for (auto &minion : game->minions)
 		{
@@ -70,7 +71,6 @@ void Tower::fire()
 					timeFromLastShot = seconds(0.f);
 				}
 
-			
 				return;
 			}
 		}
@@ -97,6 +97,22 @@ void Tower::showRange()
 void Tower::setRange(float range)
 {
 	fireRange = range;
+}
+
+int Tower::getRefund()
+{
+	int refund = 0.8 * Tower::TowerCost[type];
+	for (int i = 0; i < UpgradesCount; i++)
+		refund += 0.6 * upgrades[i] * Tower::TowerUpgradeCost[i];
+	
+	return refund;
+}
+
+void Tower::sellTower()
+{
+	game->dollars += getRefund();
+	sold = true;
+	game->selectedStatus = FreeCell;
 }
 
 Tower::~Tower()

@@ -55,11 +55,13 @@ Projectile::Projectile(Game* game0, Minion*& target0, int type0, int damage0, in
 
 	targetId = target->id;
 
-	animation = new Animation(0.02f, Projectile::ProjectileAnimationFrames[type]);
+	animation = new Animation(0.02f, Projectile::ProjectileAnimationFrames[type], game);
 }
 
 void Projectile::move()
 {
+	float timeFactor = game->timeScale[game->timeIndex];
+
 	float tileScale = game->tileSize / 64.f;
 
 	if (guided)
@@ -81,9 +83,9 @@ void Projectile::move()
 		}
 	}
 
-	velocity += acceleration;
+	velocity += timeFactor * acceleration;
 
-	sprite.move(movementIteration * velocity * tileScale * game->scale);
+	sprite.move(timeFactor * movementIteration * velocity * tileScale * game->scale);
 	
 	// Checking collisions with minions
 	for (auto minion : game->minions)

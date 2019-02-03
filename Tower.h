@@ -7,8 +7,8 @@ class Game;
 enum Upgrades
 {
 	Damage,
-	FireRate,
 	ArmorPenetration,
+	FireRate,
 	FireRange,
 	UpgradesCount
 };
@@ -34,9 +34,12 @@ private:
 
 	static const float TowerProjectileSpeed[TowerTypeCount];
 
+	static const int TowerUpgradeCost[UpgradesCount];
+
 
 	Game* game;
 
+	bool sold;
 
 	unsigned char upgrades[UpgradesCount];
 	int type;
@@ -62,6 +65,10 @@ public:
 	void showRange();
 
 	void setRange(float range);
+
+	int getRefund();
+
+	void sellTower();
 
 	~Tower();
 };

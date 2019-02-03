@@ -10,7 +10,7 @@
 #include "Map.h"
 #include "App.h"
 
-Game::Game(App& app0) : RenderingScene(app0), wave(1), dollars(120), livesLeft(20), tileSize(96.f), nMinionsSpawned(0), minionId(0), mapScrolling{}, selectedTile(0, 0), selectedStatus(Path), displayFakeTower(false), zoom(1.f), isPaused(false)
+Game::Game(App& app0) : RenderingScene(app0), wave(1), dollars(120), livesLeft(20), tileSize(96.f), nMinionsSpawned(0), minionId(0), mapScrolling{}, selectedTile(0, 0), selectedStatus(Path), displayFakeTower(false), zoom(1.f), isPaused(false), timeIndex(0), timeScale{1.f, 2.f, 4.f}
 {
 	std::srand(std::time(NULL));
 
@@ -27,6 +27,7 @@ Game::Game(App& app0) : RenderingScene(app0), wave(1), dollars(120), livesLeft(2
 	gameInterface.setScale(scale, scale);
 
 	towerTexture.loadFromFile("img/towerTexture.png");
+	upgradeTexture.loadFromFile("img/upgradeTexture.png");
 	minionTexture.loadFromFile("img/minionTexture.png");
 	projectileTexture.loadFromFile("img/projectileTexture.png");
 
@@ -105,15 +106,21 @@ void Game::passEvent(Event event)
 		if (event.key.code >= sf::Keyboard::Left && event.key.code <= sf::Keyboard::Down)
 			mapScrolling[EKeyboard][event.key.code - sf::Keyboard::Left] = true;
 		
-		if (selectedStatus == FreeCell && event.key.code >= Keyboard::Num1 && event.key.code <= Keyboard::Num2)
+		if (selectedStatus != Path && event.key.code >= Keyboard::Num1 && event.key.code <= Keyboard::Num4)
 		{
-			int towerChoice = event.key.code - Keyboard::Num1;
+			int purchaseChoice = event.key.code - Keyboard::Num1;
 
-			placeTower(towerChoice);
+			if (purchaseChoice > 1 && selectedStatus == FreeCell)
+				return;
+
+			spendMoney(purchaseChoice);
 		}
 
 		if (event.key.code == Keyboard::P)
 			isPaused = !isPaused;
+
+		if (event.key.code == Keyboard::T)
+			++timeIndex %= 3;
 	}
 
 	if (event.type == sf::Event::KeyReleased)
@@ -155,18 +162,36 @@ void Game::leftMouseClick(Vector2i pos)
 		selectedStatus = FreeCell;
 
 	}
-	else if (selectedStatus == FreeCell && pos.x < 0.35f * scale * 1920.f && pos.x >= 0.15f * scale * 1920.f && pos.y >= 0.85f * scale * 1080.f && pos.y < 0.95f * scale * 1080.f) // wybor towera
+	else if (selectedStatus != Path && pos.x < 0.55f * scale * 1920.f && pos.x >= 0.15f * scale * 1920.f && pos.y >= 0.85f * scale * 1080.f && pos.y < 0.95f * scale * 1080.f) // wybor towera
 	{
-		int towerChoice = pos.x - 0.15f * scale * 1920.f;
-		towerChoice /= 0.1f * scale * 1920.f;
+		int purchaseChoice = pos.x - 0.15f * scale * 1920.f;
+		purchaseChoice /= 0.1f * scale * 1920.f;
 
-		placeTower(towerChoice);
+		if (purchaseChoice > 1 && selectedStatus == FreeCell)
+			return;
+
+		spendMoney(purchaseChoice);
+	}
+
+	if (selectedStatus == OccupiedCell && pos.x < scale * (0.05f * 1920.f + 0.1f * 1080.f) && pos.x >= 0.05f && pos.y >= 0.85f * scale * 1080.f && pos.y < 0.95f * scale * 1080.f)
+	{
+		Tower* t = nullptr;
+		for (auto &tower : towers)
+		{
+			if (tower->sprite.getPosition() == Vector2f((selectedTile.x + 0.5f) * scale * tileSize, (selectedTile.y + 0.5f) * scale * tileSize))
+			{
+				t = tower;
+				break;
+			}
+		}
+
+		t->sellTower();
 	}
 }
 
 int Game::checkCursorPosition(Vector2i pos)
 {
-	mapScrolling[EMouse][Left] = pos.x < 0.1f * scale * 1920.f;
+	mapScrolling[EMouse][Left] = pos.x < 0.05f * scale * 1920.f;
 	mapScrolling[EMouse][Right] = pos.x >= 0.95f * scale * 1920.f;
 
 	mapScrolling[EMouse][Up] = pos.y < 0.05f * scale * 1080.f;
@@ -248,17 +273,17 @@ void Game::cameraMoving()
 
 void Game::spawningObjects()
 {
-	if (nMinionsSpawned < 3 + wave/2)
+	if (nMinionsSpawned < 10)
 	{
 		if (isPaused)
 			clock.restart();
 		else
-		{
-			time += clock.restart();
+		{	
+			time += seconds(timeScale[timeIndex] * clock.restart().asSeconds());
 			float spawnInterval = 2.f - 0.00005f * float(wave) * float(wave);
 			if (time.asSeconds() >= spawnInterval || minions.size() == 0) // 2 seconds spawn interval and decreasing each wave
 			{
-				minions.push_back(new Minion(this, minionId++));
+				minions.push_back(new Minion(this, minionId++, wave));
 				nMinionsSpawned++;
 				time = seconds(0.f);
 			}
@@ -291,14 +316,59 @@ void Game::spawningObjects()
 		tower->fire();
 }
 
-void Game::placeTower(int type)
+void Game::spendMoney(int type)
 {
-	if (dollars >= Tower::TowerCost[type])
-	{
-		towers.push_back(new Tower(this, type));
-		towers.back()->sprite.setPosition((selectedTile.x + 0.5f) * scale * tileSize, (selectedTile.y + 0.5f) * scale * tileSize);
+	int index = selectedStatus - 1; // FreeCell = 0, OccupiedCell = 1
 
-		dollars -= Tower::TowerCost[type];
+	int cost[2] = { Tower::TowerCost[type], Tower::TowerUpgradeCost[type] };
+	bool maxUpgraded = false;
+
+	if (dollars >= cost[index])
+	{
+		if (index == 0)
+		{
+			towers.push_back(new Tower(this, type));
+		
+			towers.back()->sprite.setPosition((selectedTile.x + 0.5f) * scale * tileSize, (selectedTile.y + 0.5f) * scale * tileSize);
+		}
+		else
+		{		
+			Tower* t = nullptr;
+			for (auto &tower : towers)
+			{
+				if (tower->sprite.getPosition() == Vector2f((selectedTile.x + 0.5f) * scale * tileSize, (selectedTile.y + 0.5f) * scale * tileSize))
+				{
+					t = tower;
+					break;
+				}
+			}
+
+			maxUpgraded = t->upgrades[type] < 8 ? false : true;
+
+			if (maxUpgraded == false)
+			{
+				t->upgrades[type]++;
+
+				switch (type)
+				{
+				case Damage:
+					t->damage = Tower::TowerDamage[t->type] + t->upgrades[type] * 2;
+					break;
+				case ArmorPenetration:
+					t->armorPenetration = Tower::TowerArmorPenetration[t->type] + t->upgrades[type];
+					break;
+				case FireRate:
+					t->fireRate = Tower::TowerFireRate[t->type] * float(12 - t->upgrades[type])/12.f;
+					break;
+				case FireRange:
+					t->fireRange = Tower::TowerFireRange[t->type] + t->upgrades[type] * 16;
+					break;
+				}
+			}
+		}
+
+		if(maxUpgraded == false)
+			dollars -= cost[index];
 
 		selectedStatus = OccupiedCell;
 		displayFakeTower = false;
@@ -435,7 +505,11 @@ void Game::loadGraphicsToWindow()
 
 	printInterface();
 
-	printButtons();
+	if (isPaused)
+	{
+		window->draw(pauseRect);
+		window->draw(pauseText);
+	}
 }
 
 void Game::printInterface()
@@ -454,7 +528,7 @@ void Game::printInterface()
 
 	Vector2f offset(0.f, 0.1213f*scale*1080.f);
 
-	int value[] = { dollars, wave, livesLeft, 3 + wave / 2 - nMinionsSpawned };
+	int value[] = { dollars, wave, livesLeft, minions.size() };
 
 	for (int i = 0; i < 4; i++)
 	{
@@ -462,77 +536,136 @@ void Game::printInterface()
 		window->draw(interfaceText);
 		interfaceText.move(offset);
 	}
+
+	printButtons();
 }
 
 void Game::printButtons()
 {
-	if (selectedStatus == FreeCell)
+	if (selectedStatus == Path)
+		return;
+
+	int index = selectedStatus - 1; // FreeCell = 0, OccupiedCell = 1
+
+	int loopCount[2] = { 2, 4 };
+	Texture* texture[2] = {&towerTexture, &upgradeTexture};
+
+	RectangleShape towerButtonBase;
+	towerButtonBase.setFillColor(Color(200, 200, 20, 150));
+
+	towerButtonBase.setSize(Vector2f(0.1f*1920.f, 0.1f*1080.f));
+	towerButtonBase.setScale(scale, scale);
+
+	towerButtonBase.setOutlineThickness(2.f);
+	towerButtonBase.setOutlineColor(Color::Black);
+
+	Sprite s(*(texture[index]));
+	s.setScale(tileSize / 64.f * scale, tileSize / 64.f * scale);
+
+	if (selectedStatus == OccupiedCell)
 	{
-		RectangleShape towerButtonBase;
-		towerButtonBase.setFillColor(Color(200, 200, 20, 150));
+		RectangleShape sellButton;
+		sellButton.setScale(scale, scale);
 
-		towerButtonBase.setSize(Vector2f(0.1f*1920.f, 0.1f*1080.f));
-		towerButtonBase.setScale(scale, scale);
+		Vector2f pos = { 0.05f*scale*1920.f, 0.85f*scale*1080.f };
 
-		towerButtonBase.setOutlineThickness(2.f);
-		towerButtonBase.setOutlineColor(Color::Black);
+		sellButton.setPosition(pos);
+		sellButton.setSize(Vector2f(0.1f*scale*1080.f, 0.1f*scale*1080.f));
 
+		sellButton.setOutlineThickness(2.f*scale);
+		sellButton.setFillColor(Color(180, 0, 0, 255));
+		sellButton.setOutlineColor(Color::Black);
 
-		for (int i = 0; i < 2; i++)
+		window->draw(sellButton);
+
+		Text sellText;
+		sellText.setFont(font);
+		sellText.setScale(scale, scale);
+
+		sellText.setFillColor(Color::Black);
+		sellText.setPosition(pos + Vector2f(0.f, 16.f*scale));
+
+		sellText.setCharacterSize(30);
+		Tower* t = nullptr;
+		for (auto &tower : towers)
 		{
-			Vector2f pos(Vector2f((0.1f*float(i) + 0.15f)*scale*1920.f, 0.85f*scale*1080.f));
-
-			towerButtonBase.setPosition(pos);
-			window->draw(towerButtonBase);
-
-			Sprite s(towerTexture);
-			s.setTextureRect(IntRect(i * 64, 0, 64, 64));
-			s.setPosition(pos + Vector2f(5.f*scale, 0.f));
-			s.setScale(tileSize / 64.f * scale, tileSize / 64.f * scale);
-			window->draw(s);
-
-			Text cost;
-
-			cost.setFont(font);
-			cost.setScale(scale, scale);
-			cost.setCharacterSize(36);
-			cost.setFillColor(Color::Black);
-			cost.setString(std::to_string(Tower::TowerCost[i]) + "$");
-			cost.setPosition(pos + Vector2f(107.f*scale, 25.f*scale));
-
-			window->draw(cost);
-
-			Text key;
-
-			key.setFont(font);
-			key.setScale(scale, scale);
-			key.setCharacterSize(30);
-			key.setFillColor(Color::Black);
-			key.setString("[" + std::to_string(i+1) + "]");
-			key.setPosition(pos + Vector2f(10.f*scale, 69.f*scale));
-
-			window->draw(key);
-
-			if (dollars < Tower::TowerCost[i])
+			if (tower->sprite.getPosition() == Vector2f((selectedTile.x + 0.5f) * scale * tileSize, (selectedTile.y + 0.5f) * scale * tileSize))
 			{
-				RectangleShape rect;
-
-				rect.setFillColor(Color(0, 0, 0, 150));
-				rect.setSize(Vector2f(0.1f*1920.f, 0.1f*1080.f));
-				rect.setScale(scale, scale);
-				rect.setPosition(pos);
-
-				window->draw(rect);
+				t = tower;
+				break;
 			}
 		}
+		sellText.setString(" Sell for\n  " + std::to_string(t->getRefund()) + "$");
+
+		window->draw(sellText);
+
 	}
 
-	if (isPaused)
+	for (int i = 0; i < loopCount[index]; i++)
 	{
-		window->draw(pauseRect);
-		window->draw(pauseText);
-	}
+		int buyCost[2] = {Tower::TowerCost[i], Tower::TowerUpgradeCost[i]};
 
+		Vector2f pos(Vector2f((0.1f*float(i) + 0.15f)*scale*1920.f, 0.85f*scale*1080.f));
+
+		towerButtonBase.setPosition(pos);
+		window->draw(towerButtonBase);
+
+		s.setTextureRect(IntRect(i * 64, 0, 64, 64));
+		s.setPosition(pos + Vector2f(5.f*scale, 0.f));
+		window->draw(s);
+
+		Text cost;
+
+		cost.setFont(font);
+		cost.setScale(scale, scale);
+		cost.setCharacterSize(36);
+		cost.setFillColor(Color::Black);
+		cost.setString(std::to_string(buyCost[index]) + "$");
+		cost.setPosition(pos + Vector2f(107.f*scale, 25.f*scale));
+
+		window->draw(cost);
+
+		Text key;
+
+		key.setFont(font);
+		key.setScale(scale, scale);
+		key.setCharacterSize(30);
+		key.setFillColor(Color::Black);
+
+		Tower* t = nullptr;
+		for (auto &tower : towers)
+		{
+			if (tower->sprite.getPosition() == Vector2f((selectedTile.x + 0.5f) * scale * tileSize, (selectedTile.y + 0.5f) * scale * tileSize))
+			{
+				t = tower;
+				break;
+			}
+		}
+
+		key.setString("[" + std::to_string(i+1) + "]" + (selectedStatus == OccupiedCell ? "         " + std::to_string(int(t->upgrades[i]))+"/8" : ""));
+		key.setPosition(pos + Vector2f(10.f*scale, 69.f*scale));
+
+		window->draw(key);
+
+		RectangleShape rect;
+		rect.setScale(scale, scale);
+
+		rect.setSize(Vector2f(0.1f*1920.f, 0.1f*1080.f));
+		rect.setPosition(pos);
+
+		if (selectedStatus == OccupiedCell && t->upgrades[i] == 8)
+		{
+			rect.setFillColor(Color(0, 255, 0, 80));
+			window->draw(rect);
+
+		}
+		else if (dollars < buyCost[index])
+		{
+			rect.setFillColor(Color(0, 0, 0, 150));
+			window->draw(rect);
+		}
+	}
+	
 }
 
 void Game::printTiles()
@@ -588,7 +721,7 @@ void Game::destroyingObjects()
 		if (minions[i]->lives == false)
 		{
 			bool killed = !minions[i]->gotToTheEnd; // false when got to the end, true if killed by a tower
-			int reward = 18 + wave/3;
+			int reward = 20 + wave;
 
 			if (killed)
 			{
@@ -629,6 +762,18 @@ void Game::destroyingObjects()
 		{
 			delete projectiles[i];
 			projectiles.erase(projectiles.begin() + i);
+			i--;
+			vectorSize--;
+		}
+	}
+
+	vectorSize = towers.size();
+	for (int i = 0; i < vectorSize; i++)
+	{
+		if (towers[i]->sold)
+		{
+			delete towers[i];
+			towers.erase(towers.begin() + i);
 			i--;
 			vectorSize--;
 		}

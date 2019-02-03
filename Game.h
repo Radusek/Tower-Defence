@@ -34,6 +34,9 @@ private:
 
 	bool isPaused;
 
+	int timeIndex;
+	float timeScale[3];
+
 	int wave;
 	int nMinionsSpawned;
 	int dollars;
@@ -52,6 +55,8 @@ private:
 
 	Texture towerTexture;
 	std::vector<Tower*> towers;
+
+	Texture upgradeTexture;
 
 	Texture minionTexture;
 	std::vector<Minion*> minions;
@@ -82,6 +87,7 @@ private:
 	friend class Minion;
 	friend class Projectile;
 	friend class App;
+	friend class Animation;
 
 public:
 	Game(App& app0);
@@ -98,7 +104,7 @@ public:
 
 	void spawningObjects();
 
-	void placeTower(int type);
+	void spendMoney(int type);
 
 	void movingObjects();
 

@@ -42,7 +42,7 @@ private:
 
 
 public:
-	Minion(Game* game, int minionId);
+	Minion(Game* game, int minionId, int wave);
 
 	void move();
 

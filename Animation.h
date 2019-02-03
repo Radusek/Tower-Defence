@@ -2,6 +2,8 @@
 #include <SFML/Graphics.hpp>
 using namespace sf;
 
+class Game;
+
 class Animation
 {
 private:
@@ -12,8 +14,10 @@ private:
 
 	int nFrames; 
 
+	Game* game;
+
 public:
-	Animation(float animDuration0, int nFrames0);
+	Animation(float animDuration0, int nFrames0, Game* game0);
 
 	int getFrame(bool isPaused);
 
