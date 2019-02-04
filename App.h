@@ -17,6 +17,7 @@ class App
 private:
 	RenderWindow window;
 	int sceneIndex;
+	int framerate;
 
 	friend class RenderingScene;
 

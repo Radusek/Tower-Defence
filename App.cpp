@@ -19,6 +19,9 @@ App::App() : sceneIndex(EMenu)
 		std::string s;
 
 		file >> s;
+		file >> framerate;
+
+		file >> s;
 		file >> fullscreen;
 
 		if (fullscreen == false)
@@ -58,7 +61,7 @@ App::App() : sceneIndex(EMenu)
 	scenes[EMenu] = new Menu(*this);
 	scenes[EGame] = nullptr;
 
-	window.setFramerateLimit(240);
+	window.setFramerateLimit(framerate);
 }
 
 void App::run()

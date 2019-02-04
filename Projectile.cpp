@@ -60,7 +60,7 @@ Projectile::Projectile(Game* game0, Minion*& target0, int type0, int damage0, in
 
 void Projectile::move()
 {
-	float timeFactor = game->timeScale[game->timeIndex];
+	float timeFactor = 240.f / game->framerate * game->timeScale[game->timeIndex];
 
 	float tileScale = game->tileSize / 64.f;
 

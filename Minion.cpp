@@ -34,7 +34,7 @@ Minion::Minion(Game* game0, int minionId, int wave) : game(game0), pathIndex(1),
 
 void Minion::move()
 {
-	float timeFactor = game->timeScale[game->timeIndex];
+	float timeFactor = 240.f / game->framerate * game->timeScale[game->timeIndex];
 
 	float tileScale = game->tileSize / 64.f;
 

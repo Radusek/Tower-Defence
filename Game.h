@@ -35,6 +35,7 @@ private:
 	bool isPaused;
 
 	int timeIndex;
+	float baseTimeScale[3];
 	float timeScale[3];
 
 	int wave;
@@ -52,6 +53,7 @@ private:
 
 	Time time;
 	Clock clock;
+	Clock debugClock;
 
 	Texture towerTexture;
 	std::vector<Tower*> towers;
@@ -121,6 +123,8 @@ public:
 	void printTiles();
 
 	void destroyingObjects();
+
+	void manageTime();
 
 	~Game();
 };

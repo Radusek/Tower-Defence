@@ -22,6 +22,9 @@ protected:
 	RenderWindow* window;
 	int nextScene;
 
+	int framerate;
+	float frameTimeQuotient;
+
 	float scale;
 
 	Font font;

@@ -10,7 +10,7 @@
 #include "Map.h"
 #include "App.h"
 
-Game::Game(App& app0) : RenderingScene(app0), wave(1), dollars(120), livesLeft(20), tileSize(96.f), nMinionsSpawned(0), minionId(0), mapScrolling{}, selectedTile(0, 0), selectedStatus(Path), displayFakeTower(false), zoom(1.f), isPaused(false), timeIndex(0), timeScale{1.f, 2.f, 4.f}
+Game::Game(App& app0) : RenderingScene(app0), wave(1), dollars(120), livesLeft(20), tileSize(96.f), nMinionsSpawned(0), minionId(0), mapScrolling{}, selectedTile(0, 0), selectedStatus(Path), displayFakeTower(false), zoom(1.f), isPaused(false), timeIndex(0), baseTimeScale{1.f, 1.5f, 2.25f}, timeScale{ 1.f, 1.5f, 2.25f }
 {
 	std::srand(std::time(NULL));
 
@@ -46,6 +46,7 @@ Game::Game(App& app0) : RenderingScene(app0), wave(1), dollars(120), livesLeft(2
 	pauseText.setString("PAUSE");
 	pauseText.setOrigin(pauseText.getLocalBounds().width / 2, pauseText.getLocalBounds().height / 2 + 30);
 
+	debugClock.restart();
 	clock.restart();
 }
 
@@ -231,6 +232,8 @@ void Game::updateLogic()
 	staticCollision();
 	
 	destroyingObjects();
+
+	manageTime();
 }
 
 void Game::cameraMoving()
@@ -789,6 +792,14 @@ void Game::destroyingObjects()
 			vectorSize--;
 		}
 	}
+}
+
+void Game::manageTime()
+{
+	frameTimeQuotient = debugClock.restart().asSeconds() * framerate;
+
+	for (int i = 0; i < 3; i++)
+		timeScale[i] = frameTimeQuotient * baseTimeScale[i];
 }
 
 Game::~Game()
