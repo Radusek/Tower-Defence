@@ -248,7 +248,7 @@ void Game::cameraMoving()
 
 	int scrollingSpeed = 3;
 
-	for (int i = 0; i < scrollingSpeed * zoom; i++)
+	for (int i = 0; i < scrollingSpeed / zoom; i++)
 	{
 		if (dx > 0)
 		{
