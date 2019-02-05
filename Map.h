@@ -10,20 +10,25 @@ class Game;
 class Map
 {
 private:
-	bool running;
-
 	Vector2u size;
 
 	bool** boolGrid;
 
 	std::vector<Vector2f> path;
 
+	friend class Editor;
 	friend class Game;
 	friend class Minion;
 	friend class Projectile;
 
 public:
-	Map(int levelNumber);
+	Map();
+
+	void create(Vector2u size0);
+
+	void load(int levelNumber);
+
+	void free();
 
 	~Map();
 };

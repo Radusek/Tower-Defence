@@ -20,7 +20,9 @@ Game::Game(App& app0) : RenderingScene(app0), wave(1), dollars(120), livesLeft(2
 	view = View(FloatRect(0.f, 0.f, viewWidth, viewHeight));
 	view.setViewport(sf::FloatRect(0.f, 0.f, 0.8f, 0.8f));
 
-	map = new Map(2);
+	map = new Map();
+	//map->load(2);
+	map->create(Vector2u(20, 20));
 
 	tGameInterface.loadFromFile("img/gameInterface.png");
 	gameInterface.setTexture(tGameInterface);

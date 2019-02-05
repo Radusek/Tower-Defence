@@ -4,32 +4,48 @@
 #include "Tower.h"
 
 
-Map::Map(int levelNumber) : running(true)
+Map::Map() : size(0, 0)
+{	
+}
+
+void Map::create(Vector2u size0)
+{
+	size = size0;
+
+	boolGrid = new bool*[size.y];
+
+	for (unsigned int i = 0; i < size.y; i++)
+		boolGrid[i] = new bool[size.x];
+
+	for (unsigned int i = 0; i < size.y; i++)
+		for (unsigned int j = 0; j < size.x; j++)
+			boolGrid[i][j] = 1;
+	
+	path.push_back(Vector2f(0.f, 0.f));
+	path.push_back(Vector2f(5.f, 5.f));
+}
+
+void Map::load(int levelNumber)
 {
 	std::ifstream file("levels/level" + std::to_string(levelNumber) + ".txt");
 
 	if (file.is_open())
 	{
-		unsigned int x, y;
-		file >> x;
-		file >> y;
+		free();
 
-		size = Vector2u(x, y);
+		file >> size.x;
+		file >> size.y;
 
 		boolGrid = new bool*[size.y];
 
-		for (unsigned int i = 0; i < size.y; i++)
-		{
+		for (unsigned int i = 0; i < size.y; i++)	
 			boolGrid[i] = new bool[size.x];
-		}
+
 
 		for (unsigned int i = 0; i < size.y; i++)
-		{
 			for (unsigned int j = 0; j < size.x; j++)
-			{
-				file >>	boolGrid[i][j];
-			}
-		}
+				file >> boolGrid[i][j];
+
 
 		int nListElements;
 		file >> nListElements;
@@ -45,13 +61,24 @@ Map::Map(int levelNumber) : running(true)
 
 		file.close();
 	}
-	
+}
+
+void Map::free()
+{
+	if (size != Vector2u(0, 0))
+	{
+		for (unsigned int i = 0; i < size.y; i++)
+			delete[] boolGrid[i];
+
+		delete[] boolGrid;
+
+		path.clear();
+
+		size = Vector2u(0, 0);
+	}
 }
 
 Map::~Map()
 {
-	for (unsigned int i = 0; i < size.y; i++) 
-		delete[] boolGrid[i];
-
-	delete[] boolGrid;
+	free();
 }

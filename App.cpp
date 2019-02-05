@@ -4,6 +4,7 @@
 
 #include "Game.h"
 #include "Menu.h"
+#include "Editor.h"
 
 
 App::App() : sceneIndex(EMenu)
@@ -115,13 +116,17 @@ void App::sceneChanging()
 			scenes[EMenu] = new Menu(*this);
 
 		break;
+	case EEditor:
+		if (scenes[EEditor] == nullptr)
+			scenes[EEditor] = new Editor(*this);
+
+		break;
 	case EGame:
 		if (scenes[EGame] == nullptr)
 			scenes[EGame] = new Game(*this);
 
 		break;
 	}
-
 }
 
 void App::updateScreen()

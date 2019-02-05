@@ -7,6 +7,7 @@ class RenderingScene;
 enum scenes
 {
 	EMenu,
+	EEditor,
 	EGame,
 	ScenesCount
 };

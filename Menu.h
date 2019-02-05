@@ -10,6 +10,7 @@
 enum Buttons
 {
 	EPlay,
+	EEdit,
 	EExit,
 	ButtonCount
 };

@@ -14,7 +14,7 @@ Menu::Menu(App& app0) : RenderingScene(app0)
 
 
 	// BUTTONS
-	String buttonNames[ButtonCount] = { "Play", "Exit" };
+	String buttonNames[ButtonCount] = { "Play", "Editor", "Exit" };
 
 	tButton.loadFromFile("img/menuButton.png");
 	tButton.setSmooth(true);
@@ -26,7 +26,6 @@ Menu::Menu(App& app0) : RenderingScene(app0)
 		// Graphics
 		buttons[i].setTexture(tButton);
 		buttons[i].setOrigin(Vector2f(tButton.getSize() / 2u));
-			  
 
 		buttons[i].scale(Vector2f(window->getSize().x*BUTTON_SIZE_X/tButton.getSize().x, window->getSize().y*BUTTON_SIZE_Y/tButton.getSize().y));
 			  
@@ -43,9 +42,7 @@ Menu::Menu(App& app0) : RenderingScene(app0)
 		buttonText[i].setScale(scale, scale);
 
 		buttonText[i].setPosition(buttons[i].getPosition());
-
 	}
-
 }
 
 void Menu::passEvent(Event event)
@@ -74,7 +71,9 @@ void Menu::leftMouseClick(Vector2i pos)
 			window->setMouseCursor(cursor);
 
 		if (option == EPlay)
-			nextScene = 1; // EGame
+			nextScene = 2; // EGame
+		else if (option == EEdit)
+			nextScene = 1; //EEditor
 	}
 	else if (option == EExit)
 		window->close();
