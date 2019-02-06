@@ -36,6 +36,8 @@ private:
 
 	static const int TowerUpgradeCost[UpgradesCount];
 
+	static const int TowerUpgradeLimit[TowerTypeCount][UpgradesCount];
+
 
 	Game* game;
 

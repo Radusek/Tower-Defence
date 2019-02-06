@@ -16,6 +16,8 @@ const float Tower::TowerProjectileSpeed[] = {2.5f, 0.1f};
 
 const int Tower::TowerUpgradeCost[] = { 75, 50, 65, 100 };
 
+const int Tower::TowerUpgradeLimit[TowerTypeCount][UpgradesCount] = { {5, 3, 6, 6}, {10, 2, 9, 9} };
+
 
 Tower::Tower(Game* game0, int type0) : upgrades{}, game(game0), sold(false)
 {
@@ -49,7 +51,7 @@ void Tower::fire()
 		clock.restart();
 	else
 	{
-		timeFromLastShot += seconds(game->timeScale[game->timeIndex] * clock.restart().asSeconds());
+		timeFromLastShot += seconds(game->timeScale[game->timeIndex] / game->frameTimeQuotient * clock.restart().asSeconds());
 
 		for (auto &minion : game->minions)
 		{

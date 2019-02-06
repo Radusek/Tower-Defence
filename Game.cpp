@@ -21,8 +21,8 @@ Game::Game(App& app0) : RenderingScene(app0), wave(1), dollars(120), livesLeft(2
 	view.setViewport(sf::FloatRect(0.f, 0.f, 0.8f, 0.8f));
 
 	map = new Map();
-	//map->load(2);
-	map->create(Vector2u(20, 20));
+	map->load(2);
+	//map->create(Vector2u(20, 20));
 
 	tGameInterface.loadFromFile("img/gameInterface.png");
 	gameInterface.setTexture(tGameInterface);
@@ -250,7 +250,7 @@ void Game::cameraMoving()
 
 	int scrollingSpeed = 3;
 
-	for (int i = 0; i < scrollingSpeed / zoom; i++)
+	for (int i = 0; i < scrollingSpeed / zoom * 240.f / framerate; i++)
 	{
 		if (dx > 0)
 		{
@@ -284,7 +284,7 @@ void Game::spawningObjects()
 			clock.restart();
 		else
 		{	
-			time += seconds(timeScale[timeIndex] * clock.restart().asSeconds());
+			time += seconds(timeScale[timeIndex] / frameTimeQuotient * clock.restart().asSeconds());
 			float spawnInterval = 2.f - 0.00005f * float(wave) * float(wave);
 			if (time.asSeconds() >= spawnInterval || minions.size() == 0) // 2 seconds spawn interval and decreasing each wave
 			{
@@ -348,7 +348,7 @@ void Game::spendMoney(int type)
 				}
 			}
 
-			maxUpgraded = t->upgrades[type] < 8 ? false : true;
+			maxUpgraded = t->upgrades[type] < Tower::TowerUpgradeLimit[t->type][type] ? false : true;
 
 			if (maxUpgraded == false)
 			{
@@ -427,7 +427,7 @@ void Game::staticCollision()
 
 				if (distance != 0.f)
 				{
-					float overlap = 0.5f * (distance - m1->radius - m2->radius);
+					float overlap = 0.5f * (distance - tileSize / 64.f * scale * (m1->radius + m2->radius));
 
 					Vector2f pos1copy = pos1;
 
@@ -451,7 +451,7 @@ bool Game::isColliding(Minion* m1, Minion* m2)
 	Vector2f pos2 = m2->sprite.getPosition();
 
 	float distance = sqrtf((pos1.x - pos2.x)*(pos1.x - pos2.x) + (pos1.y - pos2.y)*(pos1.y - pos2.y));
-	float twoTimesRadius = m1->radius + m2->radius;
+	float twoTimesRadius = tileSize/64.f * scale * (m1->radius + m2->radius);
 
 	return distance < twoTimesRadius;
 }
@@ -533,7 +533,7 @@ void Game::printInterface()
 
 	Vector2f offset(0.f, 0.1213f*scale*1080.f);
 
-	int value[] = { dollars, wave, livesLeft, minions.size() };
+	int value[] = { dollars, wave, livesLeft, 10 + minions.size() - nMinionsSpawned };
 
 	for (int i = 0; i < 4; i++)
 	{
@@ -646,7 +646,7 @@ void Game::printButtons()
 			}
 		}
 
-		key.setString("[" + std::to_string(i+1) + "]" + (selectedStatus == OccupiedCell ? "         " + std::to_string(int(t->upgrades[i]))+"/8" : ""));
+		key.setString("[" + std::to_string(i+1) + "]" + (selectedStatus == OccupiedCell ? "         " + std::to_string(int(t->upgrades[i]))+"/"+std::to_string(Tower::TowerUpgradeLimit[t->type][i]) : ""));
 		key.setPosition(pos + Vector2f(10.f*scale, 69.f*scale));
 
 		window->draw(key);
@@ -657,7 +657,7 @@ void Game::printButtons()
 		rect.setSize(Vector2f(0.1f*1920.f, 0.1f*1080.f));
 		rect.setPosition(pos);
 
-		if (selectedStatus == OccupiedCell && t->upgrades[i] == 8)
+		if (selectedStatus == OccupiedCell && t->upgrades[i] == Tower::TowerUpgradeLimit[t->type][i])
 		{
 			rect.setFillColor(Color(0, 255, 0, 80));
 			window->draw(rect);
