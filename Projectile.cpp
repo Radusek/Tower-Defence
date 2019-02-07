@@ -6,22 +6,21 @@
 #include "Map.h"
 #include "Animation.h"
 
+using namespace sf;
+
 
 const int Projectile::ProjectileAnimationFrames[] = { 1, 5 };
 
 
 
-Projectile::Projectile(Game* game0, Minion*& target0, int type0, int damage0, int armorPenetration0, float velocity0, Vector2f position) :
+Projectile::Projectile(Game* game0, Minion* target0, int type0, int damage0, int armorPenetration0, float velocity0, Vector2f position) :
 	game(game0), target(target0), type(type0), damage(damage0), armorPenetration(armorPenetration0), guided(false), hit(false)
 {
 	velocity = velocity0;
 	sprite.setPosition(position);
 
-	float diffX = target->sprite.getPosition().x - sprite.getPosition().x;
-	float diffY = target->sprite.getPosition().y - sprite.getPosition().y;
-
-	angle = std::atan2(diffY, diffX);
-
+	targetId = target->id;
+	chase(target);
 
 	if (type == Missile)
 	{
@@ -29,41 +28,28 @@ Projectile::Projectile(Game* game0, Minion*& target0, int type0, int damage0, in
 		acceleration = 0.005f;
 	}
 
-	Vector2f projectileScale;
-	projectileScale.x = float(game->tileSize / 96.f);
-	projectileScale.y = float(game->tileSize / 96.f);
-
 	radius = 10.f;
 
 	sprite.setTexture(game->projectileTexture);
-
-	sprite.setScale(game->scale, game->scale);
-	sprite.scale(projectileScale);
-
+	sprite.setScale(Vector2f(1.f, 1.f) * game->scale * float(game->tileSize) / 96.f);
 	sprite.setOrigin(32.f, 32.f);
-	sprite.setRotation(angle * 180.f / M_PI);
 
-	movementIteration = sprite.getPosition();
+	float animDuration = 0.15f;
+	animation = new Animation(animDuration, Projectile::ProjectileAnimationFrames[type], game);
+}
 
-	movementIteration.x -= target->sprite.getPosition().x;
-	movementIteration.y -= target->sprite.getPosition().y;
+void Projectile::setMovementIteration()
+{
+	movementIteration = target->sprite.getPosition() - sprite.getPosition();
 
-	float length = sqrtf(movementIteration.x*movementIteration.x + movementIteration.y*movementIteration.y);
+	Vector2f versor = movementIteration;
+	float length = sqrtf(versor.x*versor.x + versor.y*versor.y);
 
-	movementIteration.x /= -length;
-	movementIteration.y /= -length;
-
-	targetId = target->id;
-
-	animation = new Animation(0.02f, Projectile::ProjectileAnimationFrames[type], game);
+	movementIteration /= length;
 }
 
 void Projectile::move()
 {
-	float timeFactor = 240.f / game->framerate * game->timeScale[game->timeIndex];
-
-	float tileScale = game->tileSize / 64.f;
-
 	if (guided)
 	{
 		bool targetAvailable = false;
@@ -73,61 +59,56 @@ void Projectile::move()
 			{
 				chase(minion);
 				targetAvailable = true;
+				break;
 			}
 		}
 
-		if (targetAvailable == false)
-		{
-			if (game->minions.size() > 0)
-				chase(game->minions[0]);
-		}
+		if (targetAvailable == false && game->minions.size() > 0)
+			chase(game->minions[0]);
 	}
 
+	float timeFactor = 240.f / game->framerate * game->timeScale[game->timeIndex];
 	velocity += timeFactor * acceleration;
 
-	sprite.move(timeFactor * movementIteration * velocity * tileScale * game->scale);
-	
-	// Checking collisions with minions
+	float tileScale = game->tileSize / 64.f;
+	sprite.move(movementIteration * (timeFactor * velocity * tileScale * game->scale));
+
+	checkCollisions();
+	destroyIfBeyondMap();
+}
+
+void Projectile::checkCollisions()
+{
+	float tileScale = game->tileSize / 64.f;
+
 	for (auto minion : game->minions)
 	{
-		float diffX = minion->sprite.getPosition().x - sprite.getPosition().x;
-		float diffY = minion->sprite.getPosition().y - sprite.getPosition().y;
+		Vector2f diff(minion->sprite.getPosition() - sprite.getPosition());
 
-		if (sqrtf(diffX*diffX + diffY*diffY) <= (minion->radius + radius) * game->tileSize/64.f * game->scale)
+		if (sqrtf(diff.x*diff.x + diff.y*diff.y) <= (minion->radius + radius) * tileScale * game->scale)
 		{
 			minion->takeHit(this);
 			return;
 		}
 	}
+}
 
-	// Checking if it's still within the map
-	float px = sprite.getPosition().x;
-	float py = sprite.getPosition().y;
+void Projectile::destroyIfBeyondMap()
+{
+	Vector2f pos = sprite.getPosition();
+	Vector2f bound = Vector2f(game->map->size) * float(game->tileSize) * game->scale;
 
-	float xBound = game->map->size.x * 64.f * tileScale * game->scale;
-	float yBound = game->map->size.y * 64.f * tileScale * game->scale;
-
-	if (px < 0 || py < 0 || px > xBound || py > yBound)
+	if (pos.x < 0 || pos.y < 0 || pos.x > bound.x || pos.y > bound.y)
 		hit = true;
 }
 
-void Projectile::chase(Minion *& target)
+void Projectile::chase(Minion* newTarget)
 {
-	float diffX = target->sprite.getPosition().x - sprite.getPosition().x;
-	float diffY = target->sprite.getPosition().y - sprite.getPosition().y;
+	target = newTarget;
+	setMovementIteration();
 
-	angle = std::atan2(diffY, diffX);
+	angle = std::atan2(movementIteration.y, movementIteration.x);
 	sprite.setRotation(angle * 180.f / M_PI);
-
-	movementIteration = sprite.getPosition();
-
-	movementIteration.x -= target->sprite.getPosition().x;
-	movementIteration.y -= target->sprite.getPosition().y;
-
-	float length = sqrtf(movementIteration.x*movementIteration.x + movementIteration.y*movementIteration.y);
-
-	movementIteration.x /= -length;
-	movementIteration.y /= -length;
 }
 
 Projectile::~Projectile()

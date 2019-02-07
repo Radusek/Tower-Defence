@@ -66,8 +66,6 @@ public:
 
 	void showRange();
 
-	void setRange(float range);
-
 	int getRefund();
 
 	void sellTower();

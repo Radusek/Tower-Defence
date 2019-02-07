@@ -55,6 +55,8 @@ private:
 	Clock clock;
 	Clock debugClock;
 
+	Texture tileTexture;
+
 	Texture towerTexture;
 	std::vector<Tower*> towers;
 

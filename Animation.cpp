@@ -15,7 +15,7 @@ int Animation::getFrame(bool isPaused)
 	else
 		time += seconds(game->timeScale[game->timeIndex] / game->frameTimeQuotient * clock.restart().asSeconds());
 
-	int frame = time.asSeconds() / animDuration / float(nFrames);
+	int frame = time.asSeconds() / animDuration * nFrames;
 	frame %= nFrames;
 
 	return frame;

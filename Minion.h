@@ -24,13 +24,14 @@ private:
 
 	Game* game;
 	int pathIndex;
-	int hp;
-	int armor;
-	int type;
-
-	float angle;
 
 	int id;
+	int type;
+	
+	int hp;
+	int armor;
+
+	float angle;
 
 	Sprite sprite;
 
@@ -40,9 +41,10 @@ private:
 	friend class Projectile;
 	friend class Tower;
 
-
 public:
-	Minion(Game* game, int minionId, int wave);
+	Minion(Game* game);
+
+	static int getWaveHp(int wave);
 
 	void move();
 

@@ -22,12 +22,12 @@ Game::Game(App& app0) : RenderingScene(app0), wave(1), dollars(120), livesLeft(2
 
 	map = new Map();
 	map->load(2);
-	//map->create(Vector2u(20, 20));
 
 	tGameInterface.loadFromFile("img/gameInterface.png");
 	gameInterface.setTexture(tGameInterface);
 	gameInterface.setScale(scale, scale);
 
+	tileTexture.loadFromFile("img/tileTexture.png");
 	towerTexture.loadFromFile("img/towerTexture.png");
 	upgradeTexture.loadFromFile("img/upgradeTexture.png");
 	minionTexture.loadFromFile("img/minionTexture.png");
@@ -209,7 +209,7 @@ int Game::checkCursorPosition(Vector2i pos)
 		fakeTower->type = towerType;
 
 		float towerFireRange[] = { 140.f, 180.f };
-		fakeTower->setRange(towerFireRange[towerType]);
+		fakeTower->fireRange = towerFireRange[towerType];
 		fakeTower->sprite.setTextureRect(IntRect(towerType * 64, 0, 64, 64));
 		fakeTower->sprite.setPosition((selectedTile.x + 0.5f) * scale * tileSize, (selectedTile.y + 0.5f) * scale * tileSize);
 
@@ -288,7 +288,7 @@ void Game::spawningObjects()
 			float spawnInterval = 2.f - 0.00005f * float(wave) * float(wave);
 			if (time.asSeconds() >= spawnInterval || minions.size() == 0) // 2 seconds spawn interval and decreasing each wave
 			{
-				minions.push_back(new Minion(this, minionId++, wave));
+				minions.push_back(new Minion(this));
 				nMinionsSpawned++;
 				time = seconds(0.f);
 			}
@@ -313,8 +313,9 @@ void Game::spawningObjects()
 		float direction = rand()%360;
 		float rotation = 0.2f - (rand()%5)/10.f;
 		float velocity = 0.5f;
+		float duration = 3.f;
 
-		textAnimations.push_back(new TextAnimation(animText, direction, rotation, velocity, scale, seconds(3.f)));
+		textAnimations.push_back(new TextAnimation(animText, direction, rotation, velocity, scale, duration));
 	}
 
 	for (auto &tower : towers)
@@ -333,8 +334,6 @@ void Game::spendMoney(int type)
 		if (index == 0)
 		{
 			towers.push_back(new Tower(this, type));
-		
-			towers.back()->sprite.setPosition((selectedTile.x + 0.5f) * scale * tileSize, (selectedTile.y + 0.5f) * scale * tileSize);
 		}
 		else
 		{		
@@ -458,9 +457,9 @@ bool Game::isColliding(Minion* m1, Minion* m2)
 
 void Game::loadGraphicsToWindow()
 {
-	printTiles();
-
 	window->setView(view);
+
+	printTiles();
 
 	for (auto &tower : towers)
 	{
@@ -674,14 +673,14 @@ void Game::printButtons()
 
 void Game::printTiles()
 {
+	Sprite tile;
+	tile.setTexture(tileTexture);
+	tile.setScale(tileSize/64.f * scale, tileSize/64.f * scale);
+	/*
 	float offsetX = tileSize / 2.f, offsetY = tileSize / 2.f;
 	Color color[2] = { {165, 132, 33, 255}, {100, 100, 100, 255} };
 	float outlineThickness[2] = { 0.f, 1.f };
-
-	for (unsigned int i = 0; i < map->size.y; i++)
-	{
-		for (unsigned int j = 0; j < map->size.x; j++)
-		{
+	
 			bool tileType = map->boolGrid[i][j];
 
 			float rectSize = tileSize - 2 * outlineThickness[tileType];
@@ -701,6 +700,21 @@ void Game::printTiles()
 
 			window->setView(view);
 			window->draw(rect);
+	*/
+
+	for (unsigned int i = 0; i < map->size.y; i++)
+	{
+		for (unsigned int j = 0; j < map->size.x; j++)
+		{
+			tile.setTextureRect(IntRect(map->boolGrid[i][j] * 64, 0, 64, 64));
+
+			float posX = j * tileSize;
+			float posY = i * tileSize;
+
+			tile.setPosition(Vector2f(posX, posY) * scale);
+
+			window->setView(view);
+			window->draw(tile);
 		}
 	}
 
@@ -746,8 +760,9 @@ void Game::destroyingObjects()
 				float upDirection = -M_PI / 2.f;
 				float rotation = 0.f;
 				float velocity = 0.4f;
+				float duration = 1.f;
 
-				textAnimations.push_back(new TextAnimation(animText, upDirection, rotation, velocity, scale, seconds(1.f)));
+				textAnimations.push_back(new TextAnimation(animText, upDirection, rotation, velocity, scale, duration));
 			}
 			else	
 				livesLeft--;

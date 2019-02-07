@@ -14,12 +14,12 @@ private:
 
 	Clock clock;
 	Time timeElapsed;
-	Time animDuration;
+	float animDuration;
 
 	friend class Game;
 
 public:
-	TextAnimation(Text text0, float angle0, float rotation0, float velocity0, float scale0, Time animDuration0);
+	TextAnimation(Text text0, float angle0, float rotation0, float velocity0, float scale0, float animDuration0);
 
 	void update(bool isPaused);
 

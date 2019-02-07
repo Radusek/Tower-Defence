@@ -19,28 +19,20 @@ const int Tower::TowerUpgradeCost[] = { 75, 50, 65, 100 };
 const int Tower::TowerUpgradeLimit[TowerTypeCount][UpgradesCount] = { {5, 3, 6, 6}, {10, 2, 9, 9} };
 
 
-Tower::Tower(Game* game0, int type0) : upgrades{}, game(game0), sold(false)
+Tower::Tower(Game* game0, int type0) : upgrades{}, game(game0), sold(false), type(type0)
 {
-	type = type0;
-
 	damage = TowerDamage[type];
 	armorPenetration = TowerArmorPenetration[type];
 
 	fireRate = TowerFireRate[type];
 	fireRange = TowerFireRange[type];
 
-
-	Vector2f towerScale;
-	towerScale.x = float(game->tileSize / 64.f);
-	towerScale.y = float(game->tileSize / 64.f);
-
-
 	sprite.setTexture(game->towerTexture);
-
-	sprite.setScale(game->scale, game->scale);
-	sprite.scale(towerScale);
-
+	sprite.setScale(Vector2f(1.f, 1.f) * game->scale * float(game->tileSize) / 64.f);
 	sprite.setOrigin(32.f, 32.f);
+
+	Vector2f towerPosition = Vector2f(game->selectedTile) + Vector2f(0.5f, 0.5f);
+	sprite.setPosition(towerPosition * game->scale * float(game->tileSize));
 
 	clock.restart();
 }
@@ -48,33 +40,29 @@ Tower::Tower(Game* game0, int type0) : upgrades{}, game(game0), sold(false)
 void Tower::fire()
 {
 	if (game->isPaused)
-		clock.restart();
-	else
 	{
-		timeFromLastShot += seconds(game->timeScale[game->timeIndex] / game->frameTimeQuotient * clock.restart().asSeconds());
+		clock.restart();
+		return;
+	}
+	
+	timeFromLastShot += seconds(game->timeScale[game->timeIndex] / game->frameTimeQuotient * clock.restart().asSeconds());
 
-		for (auto &minion : game->minions)
+	for (auto &minion : game->minions)
+	{
+		Vector2f diff = minion->sprite.getPosition() - sprite.getPosition();
+
+		if (sqrtf(diff.x*diff.x + diff.y*diff.y) <= fireRange * game->tileSize/64.f * game->scale)
 		{
-			float diffX = sprite.getPosition().x - minion->sprite.getPosition().x;
-			float diffY = sprite.getPosition().y - minion->sprite.getPosition().y;
+			float angle = std::atan2(diff.y, diff.x);
+			sprite.setRotation(angle * 180.f / M_PI);
 
-			if (sqrtf(diffX*diffX + diffY*diffY) <= fireRange * game->tileSize/64.f * game->scale)
+			if (timeFromLastShot.asSeconds() >= fireRate)
 			{
-
-				float diffX = minion->sprite.getPosition().x - sprite.getPosition().x;
-				float diffY = minion->sprite.getPosition().y - sprite.getPosition().y;
-
-				float angle = std::atan2(diffY, diffX);
-				sprite.setRotation(angle * 180.f / M_PI);
-
-				if (timeFromLastShot.asSeconds() >= fireRate)
-				{
-					game->projectiles.push_back(new Projectile(game, minion, type, damage, armorPenetration, TowerProjectileSpeed[type], sprite.getPosition()));
-					timeFromLastShot = seconds(0.f);
-				}
-
-				return;
+				game->projectiles.push_back(new Projectile(game, minion, type, damage, armorPenetration, TowerProjectileSpeed[type], sprite.getPosition()));
+				timeFromLastShot = seconds(0.f);
 			}
+
+			return;
 		}
 	}
 }
@@ -82,30 +70,23 @@ void Tower::fire()
 void Tower::showRange()
 {
 	float r = fireRange * game->scale * game->tileSize / 64.f;
-	CircleShape rangeCircle;
 
-	rangeCircle.setRadius(r);
+	CircleShape rangeCircle(r);
 	rangeCircle.setOrigin(r, r);
 	rangeCircle.setPosition(sprite.getPosition());
 
 	rangeCircle.setFillColor(Color(0, 200, 0, 15));
 	rangeCircle.setOutlineColor(Color(0, 0, 0, 255));
-
 	rangeCircle.setOutlineThickness(1.5f * game->scale);
 
 	game->window->draw(rangeCircle);
 }
 
-void Tower::setRange(float range)
-{
-	fireRange = range;
-}
-
 int Tower::getRefund()
 {
-	int refund = 0.8 * Tower::TowerCost[type];
+	int refund = 0.8f * Tower::TowerCost[type];
 	for (int i = 0; i < UpgradesCount; i++)
-		refund += 0.6 * upgrades[i] * Tower::TowerUpgradeCost[i];
+		refund += 0.6f * upgrades[i] * Tower::TowerUpgradeCost[i];
 	
 	return refund;
 }
