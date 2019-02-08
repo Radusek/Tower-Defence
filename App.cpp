@@ -27,34 +27,29 @@ App::App() : sceneIndex(EMenu)
 
 		if (fullscreen == false)
 		{
-			file >> s;
-			file >> mode.width;
-
-			file >> s;
-			file >> mode.height;
+			file >> s >> mode.width;
+			file >> s >> mode.height;
 		}
 
 		file.close();
 	}
 
 	unsigned int screenWidth = mode.width, screenHeight = mode.height;
-	int ratio = (100 * screenWidth) / screenHeight;
+	int ratio = 100 * screenWidth / screenHeight;
 
-	if (ratio != 177) // is not 16:9 resolution
+	if (ratio != BASE_100X_RATIO) // is not 16:9 resolution
 	{
-		if (ratio > 177) // wider native resolution
+		if (ratio > BASE_100X_RATIO) // wider native resolution
 		{
-			mode.width = 16.f / 9.f * mode.height;
+			mode.width = BASE_WIDTH / BASE_HEIGHT * mode.height;
 		}
 		else // narrow native resolution
 		{
-			mode.height = 9.f / 16.f * mode.width;
+			mode.height = BASE_HEIGHT / BASE_WIDTH * mode.width;
 		}
 	}
 
-
-
-	if(fullscreen && ratio == 177)
+	if(fullscreen && ratio == BASE_100X_RATIO)
 		window.create(mode, "El Turret Defenso!", Style::Fullscreen);
 	else
 		window.create(mode, "El Turret Defenso!", Style::Titlebar | Style::Close);
@@ -77,7 +72,6 @@ void App::run()
 
 		scenes[sceneIndex]->updateLogic();
 
-
 		// drawing
 		updateScreen();
 	}
@@ -97,17 +91,16 @@ void App::listenForInput()
 
 void App::sceneChanging()
 {
-	if (scenes[sceneIndex]->nextScene != -1)
-	{
-		int newIndex = scenes[sceneIndex]->nextScene;
-
-		delete scenes[sceneIndex];
-		scenes[sceneIndex] = nullptr;
-		
-		sceneIndex = newIndex;
-	}
-	else
+	if (scenes[sceneIndex]->nextScene == UNSET)
 		return;
+	
+
+	int newIndex = scenes[sceneIndex]->nextScene;
+
+	delete scenes[sceneIndex];
+	scenes[sceneIndex] = nullptr;
+		
+	sceneIndex = newIndex;
 
 	switch (sceneIndex)
 	{

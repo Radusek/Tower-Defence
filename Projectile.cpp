@@ -11,24 +11,26 @@ using namespace sf;
 
 const int Projectile::ProjectileAnimationFrames[] = { 1, 5 };
 
+const float Projectile::ProjectileRadius[] = { 10.f, 10.f };
+
+const float Projectile::ProjectileSpeed[] = { 900.f, 50.f };
+const float Projectile::ProjectileAcceleration[] = {0.f, 1000.f};
+
+const bool Projectile::ProjectileGuided[] = {false, true};
 
 
-Projectile::Projectile(Game* game0, Minion* target0, int type0, int damage0, int armorPenetration0, float velocity0, Vector2f position) :
-	game(game0), target(target0), type(type0), damage(damage0), armorPenetration(armorPenetration0), guided(false), hit(false)
+Projectile::Projectile(Game* game0, Minion* target0, Tower* tower0) :
+	game(game0), target(target0), type(tower0->type), damage(tower0->damage), armorPenetration(tower0->armorPenetration), hit(false)
 {
-	velocity = velocity0;
-	sprite.setPosition(position);
+	guided = ProjectileGuided[type];
+
+	sprite.setPosition(tower0->sprite.getPosition());
+	radius = ProjectileRadius[type];
+	velocity = ProjectileSpeed[type];
+	acceleration = ProjectileAcceleration[type];
 
 	targetId = target->id;
 	chase(target);
-
-	if (type == Missile)
-	{
-		guided = true;
-		acceleration = 0.005f;
-	}
-
-	radius = 10.f;
 
 	sprite.setTexture(game->projectileTexture);
 	sprite.setScale(Vector2f(1.f, 1.f) * game->scale * float(game->tileSize) / 96.f);
@@ -67,11 +69,11 @@ void Projectile::move()
 			chase(game->minions[0]);
 	}
 
-	float timeFactor = 240.f / game->framerate * game->timeScale[game->timeIndex];
-	velocity += timeFactor * acceleration;
-
+	float delta = game->timeScale[game->timeIndex] * game->frameTime.asSeconds();
 	float tileScale = game->tileSize / 64.f;
-	sprite.move(movementIteration * (timeFactor * velocity * tileScale * game->scale));
+
+	velocity += delta * acceleration;
+	sprite.move(movementIteration * (delta * velocity * tileScale * game->scale));
 
 	checkCollisions();
 	destroyIfBeyondMap();

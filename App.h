@@ -1,5 +1,9 @@
 #pragma once
 #include <SFML/Graphics.hpp>
+#define UNSET -1
+#define BASE_WIDTH 1920.f
+#define BASE_HEIGHT 1080.f
+#define BASE_100X_RATIO 177
 using namespace sf;
 
 class RenderingScene;

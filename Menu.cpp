@@ -45,6 +45,10 @@ Menu::Menu(App& app0) : RenderingScene(app0)
 	}
 }
 
+void Menu::setView()
+{
+}
+
 void Menu::passEvent(Event event)
 {
 	if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape)

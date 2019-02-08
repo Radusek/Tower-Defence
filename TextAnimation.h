@@ -2,6 +2,8 @@
 #include <SFML/Graphics.hpp>
 using namespace sf;
 
+class Game;
+
 class TextAnimation
 {
 private:
@@ -12,7 +14,6 @@ private:
 	float velocity;
 	float scale;
 
-	Clock clock;
 	Time timeElapsed;
 	float animDuration;
 
@@ -21,7 +22,7 @@ private:
 public:
 	TextAnimation(Text text0, float angle0, float rotation0, float velocity0, float scale0, float animDuration0);
 
-	void update(bool isPaused);
+	void update(Game* game);
 
 	bool finished();
 

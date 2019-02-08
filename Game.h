@@ -4,6 +4,19 @@
 #include <time.h>
 #include <vector>
 #include "RenderingScene.h"
+
+#define SELECTION_COLOR Color(0, 255, 0, 50)
+#define REWARD_TEXT_COLOR Color(10, 100, 10, 255)
+#define BUTTON_COLOR Color(200, 200, 20, 150)
+#define SELL_BUTTON_COLOR Color(180, 0, 0, 255)
+#define FULL_UPGRADE_COLOR Color(0, 255, 0, 80)
+#define NO_MONEY_COLOR Color(0, 0, 0, 150)
+#define INTERFACE_TEXT_COLOR Color(56, 56, 56, 255)
+
+#define REWARD_TEXT_SIZE 48
+
+#define TEXT_Y_OFFSET 0.1213f
+
 using namespace sf;
 
 class Minion;
@@ -35,14 +48,12 @@ private:
 	bool isPaused;
 
 	int timeIndex;
-	float baseTimeScale[3];
 	float timeScale[3];
 
 	int wave;
 	int nMinionsSpawned;
 	int dollars;
 	int livesLeft;
-	int tileSize;
 
 	int minionId;
 
@@ -51,11 +62,10 @@ private:
 	Vector2i selectedTile;
 	int selectedStatus;
 
-	Time time;
 	Clock clock;
-	Clock debugClock;
+	Time frameTime;
 
-	Texture tileTexture;
+	Time spawnTime;
 
 	Texture towerTexture;
 	std::vector<Tower*> towers;
@@ -82,19 +92,20 @@ private:
 
 	float zoom;
 
-
 	Map* map;
 
-	View view;
 
 	friend class Tower;
 	friend class Minion;
 	friend class Projectile;
 	friend class App;
 	friend class Animation;
+	friend class TextAnimation;
 
 public:
 	Game(App& app0);
+
+	void setView();
 
 	void passEvent(Event event);
 
@@ -127,6 +138,8 @@ public:
 	void destroyingObjects();
 
 	void manageTime();
+
+	Tower* getSelectedTower();
 
 	~Game();
 };

@@ -13,6 +13,8 @@ private:
 public:
 	Editor(App& app0);
 
+	void setView();
+
 	void passEvent(Event event);
 
 	void leftMouseClick(Vector2i pos);

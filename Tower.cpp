@@ -12,8 +12,6 @@ const int Tower::TowerArmorPenetration[] = {1, 0};
 const float Tower::TowerFireRate[] = {0.4f, 1.4f}; // reload time [s]
 const float Tower::TowerFireRange[] = { 140.f, 180.f }; // !WITHOUT SCALING! needs to be done elsewhere
 
-const float Tower::TowerProjectileSpeed[] = {2.5f, 0.1f};
-
 const int Tower::TowerUpgradeCost[] = { 75, 50, 65, 100 };
 
 const int Tower::TowerUpgradeLimit[TowerTypeCount][UpgradesCount] = { {5, 3, 6, 6}, {10, 2, 9, 9} };
@@ -33,19 +31,14 @@ Tower::Tower(Game* game0, int type0) : upgrades{}, game(game0), sold(false), typ
 
 	Vector2f towerPosition = Vector2f(game->selectedTile) + Vector2f(0.5f, 0.5f);
 	sprite.setPosition(towerPosition * game->scale * float(game->tileSize));
-
-	clock.restart();
 }
 
 void Tower::fire()
 {
 	if (game->isPaused)
-	{
-		clock.restart();
 		return;
-	}
 	
-	timeFromLastShot += seconds(game->timeScale[game->timeIndex] / game->frameTimeQuotient * clock.restart().asSeconds());
+	timeFromLastShot += seconds(game->timeScale[game->timeIndex] * game->frameTime.asSeconds());
 
 	for (auto &minion : game->minions)
 	{
@@ -58,7 +51,7 @@ void Tower::fire()
 
 			if (timeFromLastShot.asSeconds() >= fireRate)
 			{
-				game->projectiles.push_back(new Projectile(game, minion, type, damage, armorPenetration, TowerProjectileSpeed[type], sprite.getPosition()));
+				game->projectiles.push_back(new Projectile(game, minion, this));
 				timeFromLastShot = seconds(0.f);
 			}
 

@@ -10,15 +10,11 @@
 #include "Map.h"
 #include "App.h"
 
-Game::Game(App& app0) : RenderingScene(app0), wave(1), dollars(120), livesLeft(20), tileSize(96.f), nMinionsSpawned(0), minionId(0), mapScrolling{}, selectedTile(0, 0), selectedStatus(Path), displayFakeTower(false), zoom(1.f), isPaused(false), timeIndex(0), baseTimeScale{1.f, 1.5f, 2.25f}, timeScale{ 1.f, 1.5f, 2.25f }
+Game::Game(App& app0) : RenderingScene(app0), wave(1), dollars(120), livesLeft(20), nMinionsSpawned(0), minionId(0), mapScrolling{}, selectedTile(0, 0), selectedStatus(Path), displayFakeTower(false), zoom(1.f), isPaused(false), timeIndex(0), timeScale{ 1.f, 1.5f, 2.25f }
 {
 	std::srand(std::time(NULL));
 
-	float viewWidth = 0.8f*window->getSize().x;
-	float viewHeight = 0.8f*window->getSize().y;
-
-	view = View(FloatRect(0.f, 0.f, viewWidth, viewHeight));
-	view.setViewport(sf::FloatRect(0.f, 0.f, 0.8f, 0.8f));
+	setView();
 
 	map = new Map();
 	map->load(2);
@@ -27,7 +23,6 @@ Game::Game(App& app0) : RenderingScene(app0), wave(1), dollars(120), livesLeft(2
 	gameInterface.setTexture(tGameInterface);
 	gameInterface.setScale(scale, scale);
 
-	tileTexture.loadFromFile("img/tileTexture.png");
 	towerTexture.loadFromFile("img/towerTexture.png");
 	upgradeTexture.loadFromFile("img/upgradeTexture.png");
 	minionTexture.loadFromFile("img/minionTexture.png");
@@ -48,8 +43,16 @@ Game::Game(App& app0) : RenderingScene(app0), wave(1), dollars(120), livesLeft(2
 	pauseText.setString("PAUSE");
 	pauseText.setOrigin(pauseText.getLocalBounds().width / 2, pauseText.getLocalBounds().height / 2 + 30);
 
-	debugClock.restart();
 	clock.restart();
+}
+
+void Game::setView()
+{
+	float screenPart = 0.8f;
+	Vector2f viewSize(Vector2f(window->getSize()) * screenPart);
+
+	view = View(FloatRect(0.f, 0.f, viewSize.x, viewSize.y));
+	view.setViewport(sf::FloatRect(0.f, 0.f, screenPart, screenPart));
 }
 
 void Game::passEvent(Event event)
@@ -225,6 +228,8 @@ int Game::checkCursorPosition(Vector2i pos)
 
 void Game::updateLogic()
 {
+	manageTime();
+
 	cameraMoving();
 	
 	spawningObjects();
@@ -234,8 +239,6 @@ void Game::updateLogic()
 	staticCollision();
 	
 	destroyingObjects();
-
-	manageTime();
 }
 
 void Game::cameraMoving()
@@ -280,17 +283,15 @@ void Game::spawningObjects()
 {
 	if (nMinionsSpawned < 10)
 	{
-		if (isPaused)
-			clock.restart();
-		else
-		{	
-			time += seconds(timeScale[timeIndex] / frameTimeQuotient * clock.restart().asSeconds());
-			float spawnInterval = 2.f - 0.00005f * float(wave) * float(wave);
-			if (time.asSeconds() >= spawnInterval || minions.size() == 0) // 2 seconds spawn interval and decreasing each wave
+		if (isPaused == false)
+		{
+			spawnTime += seconds(timeScale[timeIndex] * frameTime.asSeconds());
+			float spawnInterval = 2.f - 0.00005f * float(wave) * float(wave); // 2 seconds spawn interval and decreasing each wave
+			if (spawnTime.asSeconds() >= spawnInterval || minions.size() == 0) 
 			{
 				minions.push_back(new Minion(this));
 				nMinionsSpawned++;
-				time = seconds(0.f);
+				spawnTime = seconds(0.f);
 			}
 		}
 	}
@@ -299,14 +300,11 @@ void Game::spawningObjects()
 		nMinionsSpawned = 0;
 		wave++;
 
-		Text animText;
+		Text animText("NOICE! NEXT WAVE!!!", font, 96);
 
-		animText.setFont(font);
 		animText.setFillColor(Color(100, 10, 100, 255));
 		animText.setScale(scale, scale);
-		animText.setCharacterSize(96);
 
-		animText.setString("NOICE! NEXT WAVE!!!");
 		animText.setOrigin(Vector2f(animText.getLocalBounds().width / 2.f, animText.getLocalBounds().height / 2.f));
 		animText.setPosition(0.5f*1920.f*scale, 0.2f*1080.f*scale);
 
@@ -399,7 +397,7 @@ void Game::movingObjects()
 	
 	for (auto &anim : textAnimations)
 	{
-		anim->update(isPaused);
+		anim->update(this);
 	}
 
 	if (!isPaused)
@@ -520,23 +518,22 @@ void Game::printInterface()
 {
 	window->draw(gameInterface);
 
-	Text interfaceText;
+	int fontSize = 60;
+	Text interfaceText("", font, fontSize);
 
-	interfaceText.setFont(font);
 	interfaceText.setScale(scale, scale);
-	interfaceText.setCharacterSize(60);
-	interfaceText.setFillColor(Color(56, 56, 56, 255));
+	interfaceText.setFillColor(INTERFACE_TEXT_COLOR);
 
-	Vector2f startingPoint(0.85f*scale*1920.f + scale * 12.f, 0.1f*scale*1080.f - 0.25f*60.f*scale);
-	interfaceText.setPosition(startingPoint);
+	Vector2f startPoint(Vector2f(0.85f*BASE_WIDTH +  12.f, 0.1f*BASE_HEIGHT - 0.25f*fontSize) * scale);
+	interfaceText.setPosition(startPoint);
 
-	Vector2f offset(0.f, 0.1213f*scale*1080.f);
+	Vector2f offset(0.f, TEXT_Y_OFFSET * scale * BASE_HEIGHT);
 
 	int value[] = { dollars, wave, livesLeft, 10 + minions.size() - nMinionsSpawned };
 
-	for (int i = 0; i < 4; i++)
+	for (auto val : value)
 	{
-		interfaceText.setString(std::to_string(value[i]));
+		interfaceText.setString(std::to_string(val));
 		window->draw(interfaceText);
 		interfaceText.move(offset);
 	}
@@ -554,187 +551,125 @@ void Game::printButtons()
 	int loopCount[2] = { 2, 4 };
 	Texture* texture[2] = {&towerTexture, &upgradeTexture};
 
-	RectangleShape towerButtonBase;
-	towerButtonBase.setFillColor(Color(200, 200, 20, 150));
+	RectangleShape towerButtonBase(Vector2f(BASE_WIDTH, BASE_HEIGHT) * 0.1f * scale);
+	towerButtonBase.setOutlineThickness(2.f * scale);
 
-	towerButtonBase.setSize(Vector2f(0.1f*1920.f, 0.1f*1080.f));
-	towerButtonBase.setScale(scale, scale);
-
-	towerButtonBase.setOutlineThickness(2.f);
+	towerButtonBase.setFillColor(BUTTON_COLOR);
 	towerButtonBase.setOutlineColor(Color::Black);
 
 	Sprite s(*(texture[index]));
-	s.setScale(tileSize / 64.f * scale, tileSize / 64.f * scale);
+	s.setScale(Vector2f(1.f, 1.f) * float(tileSize) / TSIZE_F * scale);
 
 	if (selectedStatus == OccupiedCell)
 	{
-		RectangleShape sellButton;
+		RectangleShape sellButton(Vector2f(BASE_HEIGHT, BASE_HEIGHT) * 0.1f * scale);
+		sellButton.setOutlineThickness(2.f * scale);
 
-		Vector2f pos = { 0.05f*scale*1920.f, 0.85f*scale*1080.f };
-
+		Vector2f pos(Vector2f(0.05f * BASE_WIDTH, 0.85f * BASE_HEIGHT) * scale);
 		sellButton.setPosition(pos);
-		sellButton.setSize(Vector2f(0.1f*scale*1080.f, 0.1f*scale*1080.f));
 
-		sellButton.setOutlineThickness(2.f*scale);
-		sellButton.setFillColor(Color(180, 0, 0, 255));
+		sellButton.setFillColor(SELL_BUTTON_COLOR);
 		sellButton.setOutlineColor(Color::Black);
 
 		window->draw(sellButton);
 
-		Text sellText;
-		sellText.setFont(font);
+		Tower* t = nullptr;
+		t = getSelectedTower();
+
+		Text sellText(" Sell for\n  " + std::to_string(t->getRefund()) + "$", font, 30);
 		sellText.setScale(scale, scale);
 
 		sellText.setFillColor(Color::Black);
 		sellText.setPosition(pos + Vector2f(0.f, 16.f*scale));
 
-		sellText.setCharacterSize(30);
-		Tower* t = nullptr;
-		for (auto &tower : towers)
-		{
-			if (tower->sprite.getPosition() == Vector2f((selectedTile.x + 0.5f) * scale * tileSize, (selectedTile.y + 0.5f) * scale * tileSize))
-			{
-				t = tower;
-				break;
-			}
-		}
-		sellText.setString(" Sell for\n  " + std::to_string(t->getRefund()) + "$");
-
 		window->draw(sellText);
-
 	}
 
 	for (int i = 0; i < loopCount[index]; i++)
 	{
 		int buyCost[2] = {Tower::TowerCost[i], Tower::TowerUpgradeCost[i]};
 
-		Vector2f pos(Vector2f((0.1f*float(i) + 0.15f)*scale*1920.f, 0.85f*scale*1080.f));
-
+		Vector2f pos(Vector2f((0.1f*i + 0.15f)*BASE_WIDTH, 0.85f*BASE_HEIGHT) * scale);
 		towerButtonBase.setPosition(pos);
+
 		window->draw(towerButtonBase);
 
-		s.setTextureRect(IntRect(i * 64, 0, 64, 64));
+		s.setTextureRect(IntRect(i * TSIZE, 0, TSIZE, TSIZE));
 		s.setPosition(pos + Vector2f(5.f*scale, 0.f));
+
 		window->draw(s);
 
-		Text cost;
+		Text cost(std::to_string(buyCost[index]) + "$", font, 36);
 
-		cost.setFont(font);
 		cost.setScale(scale, scale);
-		cost.setCharacterSize(36);
 		cost.setFillColor(Color::Black);
-		cost.setString(std::to_string(buyCost[index]) + "$");
-		cost.setPosition(pos + Vector2f(107.f*scale, 25.f*scale));
+		cost.setPosition(pos + Vector2f(107.f, 25.f) * scale);
 
 		window->draw(cost);
 
-		Text key;
+		Tower* t = nullptr;
+		t = getSelectedTower();
 
-		key.setFont(font);
+		String str = "[" + std::to_string(i + 1) + "]" + (selectedStatus == OccupiedCell ? "         " + std::to_string(int(t->upgrades[i])) + "/" + std::to_string(Tower::TowerUpgradeLimit[t->type][i]) : ""); // XD
+
+		Text key(str, font, 30);
+
 		key.setScale(scale, scale);
-		key.setCharacterSize(30);
 		key.setFillColor(Color::Black);
 
-		Tower* t = nullptr;
-		for (auto &tower : towers)
-		{
-			if (tower->sprite.getPosition() == Vector2f((selectedTile.x + 0.5f) * scale * tileSize, (selectedTile.y + 0.5f) * scale * tileSize))
-			{
-				t = tower;
-				break;
-			}
-		}
-
-		key.setString("[" + std::to_string(i+1) + "]" + (selectedStatus == OccupiedCell ? "         " + std::to_string(int(t->upgrades[i]))+"/"+std::to_string(Tower::TowerUpgradeLimit[t->type][i]) : ""));
-		key.setPosition(pos + Vector2f(10.f*scale, 69.f*scale));
+		key.setPosition(pos + Vector2f(10.f, 69.f) * scale);
 
 		window->draw(key);
 
-		RectangleShape rect;
-		rect.setScale(scale, scale);
-
-		rect.setSize(Vector2f(0.1f*1920.f, 0.1f*1080.f));
+		RectangleShape rect(Vector2f(BASE_WIDTH, BASE_HEIGHT) * 0.1f * scale);
 		rect.setPosition(pos);
 
 		if (selectedStatus == OccupiedCell && t->upgrades[i] == Tower::TowerUpgradeLimit[t->type][i])
 		{
-			rect.setFillColor(Color(0, 255, 0, 80));
+			rect.setFillColor(FULL_UPGRADE_COLOR);
 			window->draw(rect);
-
 		}
 		else if (dollars < buyCost[index])
 		{
-			rect.setFillColor(Color(0, 0, 0, 150));
+			rect.setFillColor(NO_MONEY_COLOR);
 			window->draw(rect);
 		}
 	}
-	
 }
 
 void Game::printTiles()
 {
-	Sprite tile;
-	tile.setTexture(tileTexture);
-	tile.setScale(tileSize/64.f * scale, tileSize/64.f * scale);
-	/*
-	float offsetX = tileSize / 2.f, offsetY = tileSize / 2.f;
-	Color color[2] = { {165, 132, 33, 255}, {100, 100, 100, 255} };
-	float outlineThickness[2] = { 0.f, 1.f };
-	
-			bool tileType = map->boolGrid[i][j];
-
-			float rectSize = tileSize - 2 * outlineThickness[tileType];
-			RectangleShape rect(Vector2f(rectSize, rectSize));
-			rect.setScale(scale, scale);
-
-			float posX = scale * (offsetX  + j * tileSize);
-			float posY = scale * (offsetY  + i * tileSize);
-			
-			rect.setPosition(posX, posY);
-			rect.setOrigin(rectSize / 2.f, rectSize / 2.f);
-
-			rect.setOutlineColor(Color::Black);
-			rect.setOutlineThickness(outlineThickness[tileType]);
-
-			rect.setFillColor(color[tileType]);
-
-			window->setView(view);
-			window->draw(rect);
-	*/
+	Sprite tile(tileTexture);
+	tile.setScale(Vector2f(1.f, 1.f) * float(tileSize) / TSIZE_F * scale);
 
 	for (unsigned int i = 0; i < map->size.y; i++)
 	{
 		for (unsigned int j = 0; j < map->size.x; j++)
 		{
-			tile.setTextureRect(IntRect(map->boolGrid[i][j] * 64, 0, 64, 64));
+			tile.setTextureRect(IntRect(map->boolGrid[i][j] * TSIZE, 0, TSIZE, TSIZE));
 
-			float posX = j * tileSize;
-			float posY = i * tileSize;
+			Vector2f pos(Vector2f(j, i) * float(tileSize) * scale);
+			tile.setPosition(pos);
 
-			tile.setPosition(Vector2f(posX, posY) * scale);
-
-			window->setView(view);
 			window->draw(tile);
 		}
 	}
 
-	if (selectedStatus > Path) // highlight selected tile
-	{
-		RectangleShape selection;
-		selection.setFillColor(Color(0, 255, 0, 50));
+	if (selectedStatus == Path) 
+		return;
 
-		selection.setSize(Vector2f(scale*tileSize, scale*tileSize));
-		selection.setPosition(Vector2f(selectedTile.x, selectedTile.y) * scale * float(tileSize));
+	// highlight selected tile
+	RectangleShape selection(Vector2f(1.f, 1.f) * scale * float(tileSize));
+	selection.setPosition(Vector2f(selectedTile) * scale * float(tileSize));
 
-		window->setView(view);
-		window->draw(selection);
-	}
+	selection.setFillColor(SELECTION_COLOR);
+
+	window->draw(selection);
 }
 
 void Game::destroyingObjects()
 {
-	int vectorSize = minions.size();
-	for (int i = 0; i < vectorSize; i++)
+	for (int i = 0; i < minions.size(); i++)
 	{
 		if (minions[i]->lives == false)
 		{
@@ -745,18 +680,14 @@ void Game::destroyingObjects()
 			{
 				dollars += reward;
 
-				Text animText;
+				Text animText("+" + std::to_string(reward) + "$", font, REWARD_TEXT_SIZE);
 
-				animText.setFont(font);
-				animText.setFillColor(Color(10, 100, 10, 255));
+				animText.setFillColor(REWARD_TEXT_COLOR);
 				animText.setScale(scale, scale);
-				animText.setCharacterSize(48);
 
-				animText.setString("+" + std::to_string(reward) + "$");
-				animText.setOrigin(Vector2f(animText.getLocalBounds().width / 2.f, animText.getLocalBounds().height / 2.f));
+				animText.setOrigin(animText.getLocalBounds().width / 2.f, animText.getLocalBounds().height / 2.f);
 				animText.setPosition(minions[i]->sprite.getPosition());
-
-
+				
 				float upDirection = -M_PI / 2.f;
 				float rotation = 0.f;
 				float velocity = 0.4f;
@@ -770,53 +701,53 @@ void Game::destroyingObjects()
 			delete minions[i];
 			minions.erase(minions.begin() + i);
 			i--;
-			vectorSize--;
 		}
 	}
 
-	vectorSize = projectiles.size();
-	for (int i = 0; i < vectorSize; i++)
+	for (int i = 0; i < projectiles.size(); i++)
 	{
 		if (projectiles[i]->hit)
 		{
 			delete projectiles[i];
 			projectiles.erase(projectiles.begin() + i);
 			i--;
-			vectorSize--;
 		}
 	}
 
-	vectorSize = towers.size();
-	for (int i = 0; i < vectorSize; i++)
+	for (int i = 0; i < towers.size(); i++)
 	{
 		if (towers[i]->sold)
 		{
 			delete towers[i];
 			towers.erase(towers.begin() + i);
 			i--;
-			vectorSize--;
 		}
 	}
 
-	vectorSize = textAnimations.size();
-	for (int i = 0; i < vectorSize; i++)
+	for (int i = 0; i < textAnimations.size(); i++)
 	{
 		if (textAnimations[i]->finished())
 		{
 			delete textAnimations[i];
 			textAnimations.erase(textAnimations.begin() + i);
 			i--;
-			vectorSize--;
 		}
 	}
 }
 
 void Game::manageTime()
 {
-	frameTimeQuotient = debugClock.restart().asSeconds() * framerate;
+	frameTime = clock.restart();
+}
 
-	for (int i = 0; i < 3; i++)
-		timeScale[i] = frameTimeQuotient * baseTimeScale[i];
+Tower* Game::getSelectedTower()
+{
+	for (auto &tower : towers)
+	{
+		Vector2f pos((Vector2f(selectedTile) + Vector2f(0.5f, 0.5f)) * scale * float(tileSize));
+		if (tower->sprite.getPosition() == pos)		
+			return tower;
+	}
 }
 
 Game::~Game()

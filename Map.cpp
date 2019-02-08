@@ -47,15 +47,13 @@ void Map::load(int levelNumber)
 				file >> boolGrid[i][j];
 
 
-		int nListElements;
-		file >> nListElements;
+		int nPathPoints;
+		file >> nPathPoints;
 
-		for (int i = 0; i < nListElements; i++)
+		for (int i = 0; i < nPathPoints; i++)
 		{
 			float x, y;
-			file >> x;
-			file >> y;
-
+			file >> x >> y;
 			path.push_back(Vector2f(x, y));
 		}
 

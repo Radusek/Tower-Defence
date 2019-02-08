@@ -8,7 +8,6 @@ class Animation
 {
 private:
 	Time time;
-	Clock clock;
 
 	float animDuration; // [seconds]
 
@@ -23,4 +22,3 @@ public:
 
 	~Animation();
 };
-

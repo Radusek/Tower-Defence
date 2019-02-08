@@ -32,8 +32,6 @@ private:
 	static const float TowerFireRate[TowerTypeCount];
 	static const float TowerFireRange[TowerTypeCount];
 
-	static const float TowerProjectileSpeed[TowerTypeCount];
-
 	static const int TowerUpgradeCost[UpgradesCount];
 
 	static const int TowerUpgradeLimit[TowerTypeCount][UpgradesCount];
@@ -55,9 +53,9 @@ private:
 	Sprite sprite;
 
 	Time timeFromLastShot;
-	Clock clock;
 
 	friend class Game;
+	friend class Projectile;
 
 public:
 	Tower(Game* game0, int type0);

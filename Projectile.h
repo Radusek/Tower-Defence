@@ -20,6 +20,14 @@ class Projectile : public Movable
 private:
 	static const int ProjectileAnimationFrames[ETowerTypeCount];
 
+	static const float ProjectileRadius[ETowerTypeCount];
+
+	static const float ProjectileSpeed[ETowerTypeCount];
+	static const float ProjectileAcceleration[ETowerTypeCount];
+
+	static const bool ProjectileGuided[ETowerTypeCount];
+
+
 
 	Game* game;
 
@@ -45,7 +53,8 @@ private:
 	friend class Minion;
 
 public:
-	Projectile(Game* game0, Minion* target0, int type0, int damage0, int armorPenetration0, float velocity0, Vector2f position);
+	// we we to zmieñ ziomuœ
+	Projectile(Game* game0, Minion* target0, Tower* tower0);
 
 	void setMovementIteration();
 

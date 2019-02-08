@@ -1,5 +1,7 @@
 #pragma once
 #include <SFML/Graphics.hpp>
+#define TSIZE 64 // Size of a single texture element
+#define TSIZE_F 64.f // Size of a single texture element (float)
 using namespace sf;
 
 class App;
@@ -23,17 +25,23 @@ protected:
 	int nextScene;
 
 	int framerate;
-	float frameTimeQuotient;
 
 	float scale;
 
 	Font font;
 
-
+	View view;
+	
+	Texture tileTexture;
+	int tileSize;
+	   
+	
 	friend class App;
 
 public:
 	RenderingScene(App& app0);
+
+	virtual void setView() = 0;
 
 	virtual void passEvent(Event event) = 0;
 

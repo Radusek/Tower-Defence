@@ -10,7 +10,7 @@ using namespace sf;
 
 Minion::Minion(Game* game0) : game(game0), pathIndex(1), hp(getWaveHp(game->wave)), armor(0), type(Normal), lives(true), gotToTheEnd(false), id(game->minionId++), angle(0.f)
 {
-	setVelocity(0.4f + float(game->wave/50.f));
+	setVelocity(150.f + float(game->wave));
 		
 	radius = 26.f;
 
@@ -22,7 +22,7 @@ Minion::Minion(Game* game0) : game(game0), pathIndex(1), hp(getWaveHp(game->wave
 	sprite.setScale(Vector2f(1.f, 1.f) * game->scale * float(game->tileSize) / 64.f);
 	sprite.setOrigin(32.f, 32.f);
 
-	animation = new Animation(0.15f / velocity, 2, game);
+	animation = new Animation(75.f / velocity, 2, game);
 }
 
 int Minion::getWaveHp(int wave)
@@ -46,20 +46,20 @@ void Minion::move()
 		angleDiff -= sign * 2.f*M_PI;
 
 	bool rotating = false;
-	float timeFactor = 240.f / game->framerate * game->timeScale[game->timeIndex];
+	float delta = game->timeScale[game->timeIndex] * game->frameTime.asSeconds();
 
-	if (std::abs(angleDiff) * 180.f / M_PI < timeFactor * 3.f * velocity / 0.3f)
+	if (std::abs(angleDiff) * 180.f / M_PI < delta * 3.f * velocity / 0.3f)
 		angle = std::atan2(diff.y, diff.x);
 	else
 	{
-		angle += std::abs(angleDiff)/angleDiff * timeFactor * velocity / 0.3f * M_PI / 70.f;
+		angle += std::abs(angleDiff)/angleDiff * delta * velocity / 0.3f * M_PI / 70.f;
 		rotating = true;
 	}
 
 	float tileScale = game->tileSize / 64.f;
 	
 	Vector2f vel(cos(angle), sin(angle));
-	vel *= timeFactor * velocity * tileScale;
+	vel *= delta * velocity * tileScale * game->scale;
 
 	bool moved = false;
 	
