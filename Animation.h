@@ -11,7 +11,7 @@ private:
 
 	float animDuration; // [seconds]
 
-	int nFrames; 
+	int nFrames;
 
 	Game* game;
 

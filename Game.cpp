@@ -10,7 +10,7 @@
 #include "Map.h"
 #include "App.h"
 
-Game::Game(App& app0) : RenderingScene(app0), wave(1), dollars(120), livesLeft(20), nMinionsSpawned(0), minionId(0), mapScrolling{}, selectedTile(0, 0), selectedStatus(Path), displayFakeTower(false), zoom(1.f), isPaused(false), timeIndex(0), timeScale{ 1.f, 1.5f, 2.25f }
+Game::Game(App& app0) : RenderingScene(app0), wave(1), dollars(120), livesLeft(20), nMinionsSpawned(0), minionId(0), mapScrolling{}, selectedTile(0, 0), selectedStatus(Path), displayFakeTower(false), zoom(1.f), isPaused(false), timeIndex(0), timeScale{ 1.f, 1.5f, 2.25f }, spawnLimit(10)
 {
 	std::srand(std::time(NULL));
 
@@ -30,17 +30,15 @@ Game::Game(App& app0) : RenderingScene(app0), wave(1), dollars(120), livesLeft(2
 
 	fakeTower = new Tower(this, 0);
 
-	fakeTower->sprite.setColor(Color(128, 128, 128, 255));
+	fakeTower->sprite.setColor(FAKE_TOWER_COLOR);
 
-	pauseRect.setSize(Vector2f(0.8f*1920.f, 0.8f*1080.f));
-	pauseRect.setScale(scale, scale);
+	pauseRect.setSize(Vector2f(BASE_WIDTH, BASE_HEIGHT) * VIEW_PART * scale);
 	pauseRect.setFillColor(Color(0, 0, 0, 140));
 
-	pauseText.setFont(font);
+	pauseText = Text("PAUSE", font, 72);
 	pauseText.setScale(scale, scale);
-	pauseText.setCharacterSize(72);
-	pauseText.setPosition(0.4f * scale * 1920.f, 0.4f * scale * 1080.f);
-	pauseText.setString("PAUSE");
+	pauseText.setPosition(Vector2f(BASE_WIDTH, BASE_HEIGHT) * VIEW_PART/2.f * scale);
+
 	pauseText.setOrigin(pauseText.getLocalBounds().width / 2, pauseText.getLocalBounds().height / 2 + 30);
 
 	clock.restart();
@@ -48,11 +46,10 @@ Game::Game(App& app0) : RenderingScene(app0), wave(1), dollars(120), livesLeft(2
 
 void Game::setView()
 {
-	float screenPart = 0.8f;
-	Vector2f viewSize(Vector2f(window->getSize()) * screenPart);
+	Vector2f viewSize(Vector2f(window->getSize()) * VIEW_PART);
 
 	view = View(FloatRect(0.f, 0.f, viewSize.x, viewSize.y));
-	view.setViewport(sf::FloatRect(0.f, 0.f, screenPart, screenPart));
+	view.setViewport(sf::FloatRect(0.f, 0.f, VIEW_PART, VIEW_PART));
 }
 
 void Game::passEvent(Event event)
@@ -82,21 +79,21 @@ void Game::passEvent(Event event)
 		}
 		else
 		{
-			if (map->size.x * tileSize >= 1920.f*0.8f*zoom*1.25f - 0.1f && map->size.y * tileSize >= 1080.f*0.8f*zoom*1.25f - 0.1f)
+			if (map->size.x * tileSize >= BASE_WIDTH*VIEW_PART*zoom*1.25f - 0.1f && map->size.y * tileSize >= BASE_HEIGHT* VIEW_PART*zoom*1.25f - 0.1f)
 			{
 				view.zoom(1.25f);
 				zoom *= 1.25f;
 
 				Vector2f centerPos = view.getCenter();
 				
-				if (view.getCenter().x + view.getSize().x / 2.f > scale*(float(map->size.x)*tileSize))
+				if (view.getCenter().x + view.getSize().x / 2.f > scale*float(map->size.x)*tileSize)
 					centerPos.x = scale * (float(map->size.x)*tileSize) - view.getSize().x / 2.f;
 	
 				else if (view.getCenter().x - view.getSize().x / 2.f < 0.f)
 					centerPos.x = view.getSize().x / 2.f;
 
 				
-				if (view.getCenter().y + view.getSize().y / 2.f > scale*(float(map->size.y)*tileSize))
+				if (view.getCenter().y + view.getSize().y / 2.f > scale*float(map->size.y)*tileSize)
 					centerPos.y = scale * (float(map->size.y)*tileSize) - view.getSize().y / 2.f;
 
 				else if (view.getCenter().y - view.getSize().y / 2.f < 0.f)
@@ -112,7 +109,7 @@ void Game::passEvent(Event event)
 		if (event.key.code >= sf::Keyboard::Left && event.key.code <= sf::Keyboard::Down)
 			mapScrolling[EKeyboard][event.key.code - sf::Keyboard::Left] = true;
 		
-		if (selectedStatus != Path && event.key.code >= Keyboard::Num1 && event.key.code <= Keyboard::Num4)
+		if (selectedStatus > Path && event.key.code >= Keyboard::Num1 && event.key.code <= Keyboard::Num4)
 		{
 			int purchaseChoice = event.key.code - Keyboard::Num1;
 
@@ -126,7 +123,7 @@ void Game::passEvent(Event event)
 			isPaused = !isPaused;
 
 		if (event.key.code == Keyboard::T)
-			++timeIndex %= 3;
+			++timeIndex %= TIME_MODES;
 	}
 
 	if (event.type == sf::Event::KeyReleased)
@@ -138,16 +135,10 @@ void Game::passEvent(Event event)
 
 void Game::leftMouseClick(Vector2i pos)
 {
-	if (pos.x < 0.8f * scale * 1920.f && pos.y < 0.8f * scale * 1080.f) // klikniêto w obszar planszy
+	if (pos.x < VIEW_PART * scale * BASE_WIDTH && pos.y < VIEW_PART * scale * BASE_HEIGHT) // klikniêto w obszar planszy
 	{
 		Vector2f clickedPoint = window->mapPixelToCoords(pos, view);
 		
-		if (pos.x > map->size.x * tileSize * scale || pos.y > map->size.y * tileSize * scale) // klikniecie na obszar poza polem rozgrywki
-		{
-			selectedStatus = Path;
-			return;
-		}
-
 		selectedTile = Vector2i(clickedPoint / (scale*tileSize));
 
 		if (map->boolGrid[selectedTile.y][selectedTile.x] == 0)
@@ -156,22 +147,20 @@ void Game::leftMouseClick(Vector2i pos)
 			return;
 		}
 		else
-		{
 			selectedStatus = OccupiedCell;
-		}
 
-		Vector2f newPosition((selectedTile.x + 0.5f) * scale * tileSize, (selectedTile.y + 0.5f) * scale * tileSize);
+		Vector2f newPosition((Vector2f(selectedTile) + Vector2f(0.5f, 0.5f)) * scale * float(tileSize));
 		for (auto &tower : towers)
 			if (tower->sprite.getPosition() == newPosition)
 				return;
 
 		selectedStatus = FreeCell;
-
 	}
-	else if (selectedStatus != Path && pos.x < 0.55f * scale * 1920.f && pos.x >= 0.15f * scale * 1920.f && pos.y >= 0.85f * scale * 1080.f && pos.y < 0.95f * scale * 1080.f) // wybor towera
+	else if (selectedStatus != Path && pos.y >= BUTTON_TOP * scale && pos.y < BUTTON_DOWN * scale
+			&& pos.x < BUTTON_N_X * scale * BASE_WIDTH && pos.x >= BUTTON_0_X * scale * BASE_WIDTH) // wybor towera
 	{
-		int purchaseChoice = pos.x - 0.15f * scale * 1920.f;
-		purchaseChoice /= 0.1f * scale * 1920.f;
+		int purchaseChoice = pos.x - BUTTON_0_X * scale * BASE_WIDTH;
+		purchaseChoice /= BUTTON_SIZE * scale * BASE_WIDTH;
 
 		if (purchaseChoice > 1 && selectedStatus == FreeCell)
 			return;
@@ -179,50 +168,40 @@ void Game::leftMouseClick(Vector2i pos)
 		spendMoney(purchaseChoice);
 	}
 
-	if (selectedStatus == OccupiedCell && pos.x < scale * (0.05f * 1920.f + 0.1f * 1080.f) && pos.x >= 0.05f && pos.y >= 0.85f * scale * 1080.f && pos.y < 0.95f * scale * 1080.f)
+	if (selectedStatus == OccupiedCell && pos.y >= scale * SELL_BUTTON_Y && pos.y < scale * (SELL_BUTTON_Y + SELL_SIZE)
+		&& pos.x < scale * (SELL_BUTTON_X + SELL_SIZE) && pos.x >= scale * SELL_BUTTON_X)
 	{
 		Tower* t = nullptr;
-		for (auto &tower : towers)
-		{
-			if (tower->sprite.getPosition() == Vector2f((selectedTile.x + 0.5f) * scale * tileSize, (selectedTile.y + 0.5f) * scale * tileSize))
-			{
-				t = tower;
-				break;
-			}
-		}
-
+		t = getSelectedTower();
 		t->sellTower();
 	}
 }
 
 int Game::checkCursorPosition(Vector2i pos)
 {
-	mapScrolling[EMouse][Left] = pos.x < 0.05f * scale * 1920.f;
-	mapScrolling[EMouse][Right] = pos.x >= 0.95f * scale * 1920.f;
+	mapScrolling[EMouse][Left] = pos.x < SCREEN_EDGE * scale * BASE_WIDTH;
+	mapScrolling[EMouse][Right] = pos.x >= (1.f - SCREEN_EDGE) * scale * BASE_WIDTH;
 
-	mapScrolling[EMouse][Up] = pos.y < 0.05f * scale * 1080.f;
-	mapScrolling[EMouse][Down] = pos.y >= 0.95f * scale * 1080.f;
+	mapScrolling[EMouse][Up] = pos.y < SCREEN_EDGE * scale * BASE_HEIGHT;
+	mapScrolling[EMouse][Down] = pos.y >= (1.f - SCREEN_EDGE) * scale * BASE_HEIGHT;
 
-
-	if (selectedStatus == FreeCell && pos.x < 0.35f * scale * 1920.f && pos.x >= 0.15f * scale * 1920.f && pos.y >= 0.85f * scale * 1080.f && pos.y < 0.95f * scale * 1080.f)
+	if (selectedStatus == FreeCell && pos.y >= BUTTON_TOP * scale && pos.y < BUTTON_DOWN * scale
+		&& pos.x < scale * (BUTTON_0_X + TowerTypeCount * BUTTON_SIZE) * BASE_WIDTH && pos.x >= scale * BUTTON_0_X * BASE_WIDTH)
 	{
-		int towerType = pos.x - 0.15f * scale * 1920.f;
-		towerType /= 0.1f * scale * 1920.f;
+		int towerType = pos.x - BUTTON_0_X * scale * BASE_WIDTH;
+		towerType /= BUTTON_SIZE * scale * BASE_WIDTH;
 
 		fakeTower->type = towerType;
+		fakeTower->fireRange = Tower::TowerFireRange[towerType];
 
-		float towerFireRange[] = { 140.f, 180.f };
-		fakeTower->fireRange = towerFireRange[towerType];
-		fakeTower->sprite.setTextureRect(IntRect(towerType * 64, 0, 64, 64));
-		fakeTower->sprite.setPosition((selectedTile.x + 0.5f) * scale * tileSize, (selectedTile.y + 0.5f) * scale * tileSize);
+		fakeTower->sprite.setTextureRect(IntRect(towerType * TSIZE, 0, TSIZE, TSIZE));
+		fakeTower->sprite.setPosition((Vector2f(selectedTile) + Vector2f(0.5f, 0.5f)) * scale * float(tileSize));
 
 		displayFakeTower = true;
 	}
 	else
-	{
 		displayFakeTower = false;
-	}
-
+	
 	return 0;
 }
 
@@ -244,12 +223,12 @@ void Game::updateLogic()
 void Game::cameraMoving()
 {
 	int dx = mapScrolling[EKeyboard][Right] + mapScrolling[EMouse][Right] - mapScrolling[EKeyboard][Left] - mapScrolling[EMouse][Left];
-	if (dx > 1) dx = 1;
-	if (dx < -1) dx = -1;
+	if (std::abs(dx) > 1) 
+		dx /= std::abs(dx);
 
 	int dy = mapScrolling[EKeyboard][Down] + mapScrolling[EMouse][Down] - mapScrolling[EKeyboard][Up] - mapScrolling[EMouse][Up];
-	if (dy > 1) dy = 1;
-	if (dy < -1) dy = -1;
+	if (std::abs(dy) > 1)
+		dy /= std::abs(dy);
 
 	int scrollingSpeed = 3;
 
@@ -281,18 +260,18 @@ void Game::cameraMoving()
 
 void Game::spawningObjects()
 {
-	if (nMinionsSpawned < 10)
+	if (isPaused)
+		return;
+
+	if (nMinionsSpawned < spawnLimit)
 	{
-		if (isPaused == false)
+		spawnTime += seconds(timeScale[timeIndex] * frameTime.asSeconds());
+		float spawnInterval = 2.f - 0.00005f * float(wave) * float(wave); // 2 seconds spawn interval and decreasing each wave
+		if (spawnTime.asSeconds() >= spawnInterval || minions.size() == 0)
 		{
-			spawnTime += seconds(timeScale[timeIndex] * frameTime.asSeconds());
-			float spawnInterval = 2.f - 0.00005f * float(wave) * float(wave); // 2 seconds spawn interval and decreasing each wave
-			if (spawnTime.asSeconds() >= spawnInterval || minions.size() == 0) 
-			{
-				minions.push_back(new Minion(this));
-				nMinionsSpawned++;
-				spawnTime = seconds(0.f);
-			}
+			minions.push_back(new Minion(this));
+			nMinionsSpawned++;
+			spawnTime = seconds(0.f);
 		}
 	}
 	else if (minions.size() == 0)
@@ -330,20 +309,11 @@ void Game::spendMoney(int type)
 	if (dollars >= cost[index])
 	{
 		if (index == 0)
-		{
 			towers.push_back(new Tower(this, type));
-		}
 		else
 		{		
 			Tower* t = nullptr;
-			for (auto &tower : towers)
-			{
-				if (tower->sprite.getPosition() == Vector2f((selectedTile.x + 0.5f) * scale * tileSize, (selectedTile.y + 0.5f) * scale * tileSize))
-				{
-					t = tower;
-					break;
-				}
-			}
+			t = getSelectedTower();
 
 			maxUpgraded = t->upgrades[type] < Tower::TowerUpgradeLimit[t->type][type] ? false : true;
 
@@ -379,34 +349,17 @@ void Game::spendMoney(int type)
 
 void Game::movingObjects()
 {
-	if (!isPaused)
-	{
-		for (auto &minion : minions)
-		{
-			minion->move();
-			minion->sprite.setTextureRect(IntRect(minion->type * 64, minion->animation->getFrame(isPaused) * 64, 64, 64));
-		}
+	if (isPaused)
+		return;
 
-		for (auto &projectile : projectiles)
-		{
-			projectile->move();
-			projectile->sprite.setTextureRect(IntRect(projectile->type * 64, projectile->animation->getFrame(isPaused) * 64, 64, 64));
-		}
-	}
+	for (auto &minion : minions)
+		minion->move();
 
-	
+	for (auto &projectile : projectiles)
+		projectile->move();
+
 	for (auto &anim : textAnimations)
-	{
 		anim->update(this);
-	}
-
-	if (!isPaused)
-	{
-		for (auto &tower : towers)
-		{
-			tower->sprite.setTextureRect(IntRect(tower->type * 64, 0, 64, 64));
-		}
-	}
 }
 
 void Game::staticCollision()
@@ -424,7 +377,7 @@ void Game::staticCollision()
 
 				if (distance != 0.f)
 				{
-					float overlap = 0.5f * (distance - tileSize / 64.f * scale * (m1->radius + m2->radius));
+					float overlap = 0.5f * (distance - tileSize / TSIZE_F * scale * (m1->radius + m2->radius));
 
 					Vector2f pos1copy = pos1;
 
@@ -448,7 +401,7 @@ bool Game::isColliding(Minion* m1, Minion* m2)
 	Vector2f pos2 = m2->sprite.getPosition();
 
 	float distance = sqrtf((pos1.x - pos2.x)*(pos1.x - pos2.x) + (pos1.y - pos2.y)*(pos1.y - pos2.y));
-	float twoTimesRadius = tileSize/64.f * scale * (m1->radius + m2->radius);
+	float twoTimesRadius = tileSize/TSIZE_F * scale * (m1->radius + m2->radius);
 
 	return distance < twoTimesRadius;
 }
@@ -461,7 +414,7 @@ void Game::loadGraphicsToWindow()
 
 	for (auto &tower : towers)
 	{
-		tower->sprite.setTextureRect(IntRect(tower->type * 64, 0, 64, 64));
+		tower->sprite.setTextureRect(IntRect(tower->type * TSIZE, 0, TSIZE, TSIZE));
 		window->draw(tower->sprite);	
 	}
 
@@ -489,21 +442,14 @@ void Game::loadGraphicsToWindow()
 		window->draw(anim->text);
 	}
 
-	// selected tower range visualization
 	if (selectedStatus == OccupiedCell)
 	{
-		for (auto &tower : towers)
-		{
-			if (tower->sprite.getPosition() == Vector2f((selectedTile.x + 0.5f) * scale * tileSize, (selectedTile.y + 0.5f) * scale * tileSize))
-			{
-				tower->showRange();
-				break;
-			}
-		}
+		Tower* t = nullptr;
+		t = getSelectedTower();
+		t->showRange();
 	}
 
 	window->setView(window->getDefaultView());
-
 
 	printInterface();
 

@@ -12,10 +12,25 @@
 #define FULL_UPGRADE_COLOR Color(0, 255, 0, 80)
 #define NO_MONEY_COLOR Color(0, 0, 0, 150)
 #define INTERFACE_TEXT_COLOR Color(56, 56, 56, 255)
+#define FAKE_TOWER_COLOR Color(128, 128, 128, 255)
 
 #define REWARD_TEXT_SIZE 48
+#define TIME_MODES 3
+#define BUTTONS 4
 
 #define TEXT_Y_OFFSET 0.1213f
+#define VIEW_PART 0.8f
+#define BUTTON_SIZE 0.1f
+#define BUTTON_0_X 0.15f
+#define BUTTON_N_X (BUTTON_0_X + BUTTONS * BUTTON_SIZE)
+#define BUTTON_TOP 0.85f * BASE_HEIGHT
+#define BUTTON_DOWN 0.95f * BASE_HEIGHT
+
+#define SCREEN_EDGE 0.05f
+
+#define SELL_BUTTON_X 0.05f * BASE_WIDTH
+#define SELL_BUTTON_Y 0.85f * BASE_HEIGHT
+#define SELL_SIZE 0.1f * BASE_HEIGHT
 
 using namespace sf;
 
@@ -48,10 +63,11 @@ private:
 	bool isPaused;
 
 	int timeIndex;
-	float timeScale[3];
+	float timeScale[TIME_MODES];
 
 	int wave;
 	int nMinionsSpawned;
+	int spawnLimit;
 	int dollars;
 	int livesLeft;
 
