@@ -1,5 +1,6 @@
 #include "Game.h"
 #include <iostream>
+#include <iomanip>
 
 #include "Tower.h"
 #include "Minion.h"
@@ -10,14 +11,16 @@
 #include "Map.h"
 #include "App.h"
 
-Game::Game(App& app0) : RenderingScene(app0), wave(1), dollars(120), livesLeft(20), nMinionsSpawned(0), minionId(0), mapScrolling{}, selectedTile(0, 0), selectedStatus(Path), displayFakeTower(false), zoom(1.f), isPaused(false), timeIndex(0), timeScale{ 1.f, 1.5f, 2.25f }, spawnLimit(10)
+Game::Game(App& app0) : RenderingScene(app0), wave(1), dollars(120), livesLeft(20), nMinionsSpawned(0), minionId(0), mapScrolling{}, selectedTile(0, 0), selectedStatus(Path), displayFakeTower(false), zoom(1.f), isPaused(false), timeIndex(0), timeScale{ 1.f, 1.5f, 2.25f }, spawnLimit(10), level{}, infoIndex(UNSET)
 {
 	std::srand(std::time(NULL));
 
 	setView();
 
 	map = new Map();
-	map->load(2);
+	int mapNumber = rand() % MAPS;
+	level[mapNumber] = true;
+	map->load(mapNumber);
 
 	tGameInterface.loadFromFile("img/gameInterface.png");
 	gameInterface.setTexture(tGameInterface);
@@ -185,24 +188,91 @@ int Game::checkCursorPosition(Vector2i pos)
 	mapScrolling[EMouse][Up] = pos.y < SCREEN_EDGE * scale * BASE_HEIGHT;
 	mapScrolling[EMouse][Down] = pos.y >= (1.f - SCREEN_EDGE) * scale * BASE_HEIGHT;
 
-	if (selectedStatus == FreeCell && pos.y >= BUTTON_TOP * scale && pos.y < BUTTON_DOWN * scale
-		&& pos.x < scale * (BUTTON_0_X + TowerTypeCount * BUTTON_SIZE) * BASE_WIDTH && pos.x >= scale * BUTTON_0_X * BASE_WIDTH)
+	displayFakeTower = false;
+	infoIndex = UNSET;
+
+	if (selectedStatus > Path && pos.y >= BUTTON_TOP * scale && pos.y < BUTTON_DOWN * scale
+		&& pos.x < scale * (BUTTON_0_X + UpgradesCount * BUTTON_SIZE) * BASE_WIDTH && pos.x >= scale * BUTTON_0_X * BASE_WIDTH)
 	{
-		int towerType = pos.x - BUTTON_0_X * scale * BASE_WIDTH;
-		towerType /= BUTTON_SIZE * scale * BASE_WIDTH;
+		int buttonNumber = pos.x - BUTTON_0_X * scale * BASE_WIDTH;
+		buttonNumber /= BUTTON_SIZE * scale * BASE_WIDTH;
 
-		fakeTower->type = towerType;
-		fakeTower->fireRange = Tower::TowerFireRange[towerType];
+		if (selectedStatus == FreeCell && buttonNumber > 1)
+			return -1;
 
-		fakeTower->sprite.setTextureRect(IntRect(towerType * TSIZE, 0, TSIZE, TSIZE));
-		fakeTower->sprite.setPosition((Vector2f(selectedTile) + Vector2f(0.5f, 0.5f)) * scale * float(tileSize));
+		if (selectedStatus == FreeCell)
+		{
+			fakeTower->type = buttonNumber;
+			fakeTower->fireRange = Tower::TowerFireRange[buttonNumber];
 
-		displayFakeTower = true;
+			fakeTower->sprite.setTextureRect(IntRect(buttonNumber * TSIZE, 0, TSIZE, TSIZE));
+			fakeTower->sprite.setPosition((Vector2f(selectedTile) + Vector2f(0.5f, 0.5f)) * scale * float(tileSize));
+
+			displayFakeTower = true;
+		}
+
+		infoIndex = buttonNumber;
 	}
-	else
-		displayFakeTower = false;
 	
 	return 0;
+}
+
+void Game::changeMap()
+{
+	map->free();
+
+	while(projectiles.size())
+	{
+		delete projectiles[0];
+		projectiles.erase(projectiles.begin());
+	}
+
+	while (towers.size())
+	{
+		delete towers[0];
+		towers.erase(towers.begin());
+	}
+
+	while (textAnimations.size())
+	{
+		delete textAnimations[0];
+		textAnimations.erase(textAnimations.begin());
+	}
+
+	wave = 1;
+	dollars = 120;
+	livesLeft += 5;
+	selectedStatus = Path;
+
+	view.setCenter(view.getSize() / 2.f);
+
+	int unusedMaps = 0;
+	for (int i = 0; i < MAPS; i++)
+		unusedMaps += 1 - level[i];
+	
+
+	if (unusedMaps == 0)
+	{
+		for (int i = 0; i < MAPS; i++)
+			level[i] = false;
+
+		unusedMaps = MAPS;
+	}
+	
+	int nextMap = rand() % unusedMaps;
+
+	for (int i = 0; i < MAPS; i++)
+	{
+		if (nextMap == 0 && level[i] == false)
+		{
+			map->load(i);
+			level[i] = true;
+			break;
+		}
+		
+		if(level[i] == false)
+			nextMap -= 1 - level[i];
+	}
 }
 
 void Game::updateLogic()
@@ -279,6 +349,9 @@ void Game::spawningObjects()
 		nMinionsSpawned = 0;
 		wave++;
 
+		if (wave == 31)
+			changeMap();
+
 		Text animText("NOICE! NEXT WAVE!!!", font, 96);
 
 		animText.setFillColor(Color(100, 10, 100, 255));
@@ -324,16 +397,16 @@ void Game::spendMoney(int type)
 				switch (type)
 				{
 				case Damage:
-					t->damage = Tower::TowerDamage[t->type] + t->upgrades[type] * 2;
+					t->damage += Tower::TowerDamageIncrease[t->type];
 					break;
 				case ArmorPenetration:
-					t->armorPenetration = Tower::TowerArmorPenetration[t->type] + t->upgrades[type];
+					t->armorPenetration += Tower::TowerArmorPenetrationIncrease[t->type];
 					break;
 				case FireRate:
-					t->fireRate = Tower::TowerFireRate[t->type] * float(12 - t->upgrades[type])/12.f;
+					t->fireRate -= Tower::TowerFireRateIncrease[t->type];
 					break;
 				case FireRange:
-					t->fireRange = Tower::TowerFireRange[t->type] + t->upgrades[type] * 16;
+					t->fireRange += Tower::TowerFireRangeIncrease[t->type];
 					break;
 				}
 			}
@@ -485,6 +558,7 @@ void Game::printInterface()
 	}
 
 	printButtons();
+	printInfo();
 }
 
 void Game::printButtons()
@@ -522,7 +596,7 @@ void Game::printButtons()
 		Tower* t = nullptr;
 		t = getSelectedTower();
 
-		Text sellText(" Sell for\n  " + std::to_string(t->getRefund()) + "$", font, 30);
+		Text sellText(" Sell for\n  " + std::to_string(t->getRefund()) + "$", font, 24);
 		sellText.setScale(scale, scale);
 
 		sellText.setFillColor(Color::Black);
@@ -545,25 +619,25 @@ void Game::printButtons()
 
 		window->draw(s);
 
-		Text cost(std::to_string(buyCost[index]) + "$", font, 36);
+		Text cost(std::to_string(buyCost[index]) + "$", font, 32);
 
 		cost.setScale(scale, scale);
 		cost.setFillColor(Color::Black);
-		cost.setPosition(pos + Vector2f(107.f, 25.f) * scale);
+		cost.setPosition(pos + Vector2f(102.f, 25.f) * scale);
 
 		window->draw(cost);
 
 		Tower* t = nullptr;
 		t = getSelectedTower();
 
-		String str = "[" + std::to_string(i + 1) + "]" + (selectedStatus == OccupiedCell ? "         " + std::to_string(int(t->upgrades[i])) + "/" + std::to_string(Tower::TowerUpgradeLimit[t->type][i]) : ""); // XD
+		String str = "[" + std::to_string(i + 1) + "]" + (selectedStatus == OccupiedCell ? "     " + std::to_string(int(t->upgrades[i])) + "/" + std::to_string(Tower::TowerUpgradeLimit[t->type][i]) : ""); // XD
 
-		Text key(str, font, 30);
+		Text key(str, font, 24);
 
 		key.setScale(scale, scale);
 		key.setFillColor(Color::Black);
 
-		key.setPosition(pos + Vector2f(10.f, 69.f) * scale);
+		key.setPosition(pos + Vector2f(3.f, 75.f) * scale);
 
 		window->draw(key);
 
@@ -581,6 +655,134 @@ void Game::printButtons()
 			window->draw(rect);
 		}
 	}
+}
+
+void Game::printInfo()
+{
+	Vector2f pos0(Vector2f(0.83f * BASE_WIDTH, 0.6f * BASE_HEIGHT) * scale);
+
+	switch (selectedStatus)
+	{
+	case Path:
+		printPathInfo(pos0);
+		break;
+
+	case FreeCell:
+		printFreeCellInfo(pos0);
+		break;
+
+	case OccupiedCell:
+		printOccupiedCellInfo(pos0);
+		break;
+	}
+}
+
+void Game::printPathInfo(Vector2f pos0)
+{
+	Sprite s(minionTexture);
+	s.setScale(Vector2f(1.f, 1.f) * scale * float(tileSize) / TSIZE_F);
+	s.setPosition(pos0);
+
+	fakeMinionTime += frameTime;
+	int frame = int(fakeMinionTime.asSeconds()) % 2;
+
+	s.setTextureRect(IntRect(0, frame * TSIZE, TSIZE, TSIZE));
+
+	window->draw(s);
+
+	int valCount = 2;
+	int values[] = {Minion::getWaveHp(wave), Minion::getWaveArmor(wave)};
+	String valueDescription[] = { "HP: ", "Armor: " };
+
+	Text text("", font, 20);
+	text.setScale(scale, scale);
+	text.setPosition(pos0 + Vector2f(0.06f * BASE_WIDTH, 0.01f * BASE_HEIGHT) * scale);
+	text.setFillColor(Color::Black);
+
+	for (int i = 0; i < valCount; i++)
+	{
+		text.setString(valueDescription[i] + std::to_string(values[i]));
+		window->draw(text);
+		text.move(Vector2f(0.f, 0.04f * BASE_HEIGHT) * scale);
+	}
+}
+
+void Game::printFreeCellInfo(Vector2f pos0)
+{
+	if (infoIndex == UNSET)
+		return;
+
+	int valCount = 4;
+	int values[] = { Tower::TowerDamage[infoIndex], Tower::TowerArmorPenetration[infoIndex], 1000 * Tower::TowerFireRate[infoIndex], Tower::TowerFireRange[infoIndex] };
+	String valueDescription[] = { "Damage: ", "Penetration: ", "Reload time: ", "Range: " };
+
+	Text text("", font, 20);
+	text.setScale(scale, scale);
+	text.setPosition(pos0);
+	text.setFillColor(Color::Black);
+
+	for (int i = 0; i < valCount; i++)
+	{
+		text.setString(valueDescription[i] + std::to_string(values[i]) + (i == 2 ? " ms" : ""));
+		window->draw(text);
+		text.move(Vector2f(0.f, 0.04f * BASE_HEIGHT) * scale);
+	}
+}
+
+void Game::printOccupiedCellInfo(Vector2f pos0)
+{
+	Tower* t = nullptr;
+	t = getSelectedTower();
+
+	int valCount = 4;
+	int values[] = { t->damage, t->armorPenetration, 1000 * t->fireRate, t->fireRange };
+	String valueDescription[] = { "Damage: ", "Penetration: ", "Reload time: ", "Range: " };
+
+	Text text("", font, 20);
+	text.setScale(scale, scale);
+	text.setPosition(pos0);
+	text.setFillColor(Color::Black);
+
+	bool displayChangeInfo = false;
+
+	int newValues[] = { values[0] + Tower::TowerDamageIncrease[t->type],
+						values[1] + Tower::TowerArmorPenetrationIncrease[t->type],
+						values[2] - 1000 * Tower::TowerFireRateIncrease[t->type],
+						values[3] + Tower::TowerFireRangeIncrease[t->type] };
+
+	int newValue = 0;
+
+	if (infoIndex != UNSET && int(Tower::TowerUpgradeLimit[t->type][infoIndex]) != int(t->upgrades[infoIndex]))
+	{
+		displayChangeInfo = true;
+		newValue = newValues[infoIndex];
+	}
+
+	for (int i = 0; i < valCount; i++)
+	{
+		text.setString(valueDescription[i] + std::to_string(values[i]) + (displayChangeInfo && i == infoIndex ? "->" + std::to_string(newValue) : "") + (i == 2 ? " ms" : ""));
+		window->draw(text);
+		text.move(Vector2f(0.f, 0.04f * BASE_HEIGHT) * scale);
+	}
+
+	String dpsVal = std::to_string(int(10 * t->damage / t->fireRate));
+	String digit = dpsVal[dpsVal.getSize() - 1];
+	dpsVal.erase(dpsVal.getSize() - 1);
+	dpsVal += "." + digit;
+
+	float newDps = 0.f;
+	if (infoIndex == 0)
+		newDps = (float(t->damage) + Tower::TowerDamageIncrease[t->type]) / t->fireRate;
+	else if (infoIndex == 2)
+		newDps = t->damage / (t->fireRate - Tower::TowerFireRateIncrease[t->type]);
+
+	String newDpsString = std::to_string(int(10 * (newDps - t->damage / t->fireRate)));
+	digit = newDpsString[newDpsString.getSize() - 1];
+	newDpsString.erase(newDpsString.getSize() - 1);
+	newDpsString += "." + digit;
+
+	text.setString("DPS: " + dpsVal + (displayChangeInfo && (infoIndex == 0 || infoIndex == 2) ? " (+"+ newDpsString + ")" : ""));
+	window->draw(text);	
 }
 
 void Game::printTiles()
@@ -620,7 +822,7 @@ void Game::destroyingObjects()
 		if (minions[i]->lives == false)
 		{
 			bool killed = !minions[i]->gotToTheEnd; // false when got to the end, true if killed by a tower
-			int reward = 20 + wave;
+			int reward = 10 + wave*0.8f;
 
 			if (killed)
 			{
@@ -641,8 +843,10 @@ void Game::destroyingObjects()
 
 				textAnimations.push_back(new TextAnimation(animText, upDirection, rotation, velocity, scale, duration));
 			}
-			else	
-				livesLeft--;
+			else if (--livesLeft <= 0)
+				nextScene = EMenu;
+
+			
 
 			delete minions[i];
 			minions.erase(minions.begin() + i);

@@ -10,7 +10,7 @@ using namespace sf;
 
 Minion::Minion(Game* game0) : game(game0), pathIndex(1), hp(getWaveHp(game->wave)), armor(0), type(Normal), lives(true), gotToTheEnd(false), id(game->minionId++), angle(0.f)
 {
-	setVelocity(150.f + float(game->wave));
+	setVelocity(200.f + 3.f*float(game->wave));
 		
 	radius = 26.f;
 
@@ -27,7 +27,11 @@ Minion::Minion(Game* game0) : game(game0), pathIndex(1), hp(getWaveHp(game->wave
 
 int Minion::getWaveHp(int wave)
 {
-	return MINION_BASE_HP + 4 * int(sqrtf(wave)*wave - 1);
+	return MINION_BASE_HP +  int(wave*(wave+2) - 1);
+
+}int Minion::getWaveArmor(int wave)
+{
+	return wave/10;
 }
 
 void Minion::move()
@@ -48,11 +52,11 @@ void Minion::move()
 	bool rotating = false;
 	float delta = game->timeScale[game->timeIndex] * game->frameTime.asSeconds();
 
-	if (std::abs(angleDiff) * 180.f / M_PI < delta * 3.f * velocity / 0.3f)
+	if (std::abs(angleDiff) < 5.f * delta * velocity / 100.f)
 		angle = std::atan2(diff.y, diff.x);
 	else
 	{
-		angle += std::abs(angleDiff)/angleDiff * delta * velocity / 0.3f * M_PI / 70.f;
+		angle += std::abs(angleDiff) / angleDiff * 4.f * delta * velocity / 100.f;
 		rotating = true;
 	}
 

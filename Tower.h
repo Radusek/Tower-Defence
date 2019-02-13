@@ -27,10 +27,17 @@ private:
 	static const int TowerCost[TowerTypeCount];
 
 	static const int TowerDamage[TowerTypeCount];
+	static const int TowerDamageIncrease[TowerTypeCount];
+
+
 	static const int TowerArmorPenetration[TowerTypeCount];
+	static const int TowerArmorPenetrationIncrease[TowerTypeCount];
 
 	static const float TowerFireRate[TowerTypeCount];
+	static const float TowerFireRateIncrease[TowerTypeCount];
+
 	static const float TowerFireRange[TowerTypeCount];
+	static const float TowerFireRangeIncrease[TowerTypeCount];
 
 	static const int TowerUpgradeCost[UpgradesCount];
 

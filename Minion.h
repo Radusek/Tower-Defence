@@ -45,6 +45,8 @@ public:
 	Minion(Game* game);
 
 	static int getWaveHp(int wave);
+	
+	static int getWaveArmor(int wave);
 
 	void move();
 

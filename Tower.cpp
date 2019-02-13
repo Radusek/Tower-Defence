@@ -6,15 +6,21 @@
 
 const int Tower::TowerCost[] = { 100, 125 };
 
-const int Tower::TowerDamage[] = {3, 7};
-const int Tower::TowerArmorPenetration[] = {1, 0};
+const int Tower::TowerDamage[] = {5, 12};
+const int Tower::TowerDamageIncrease[] = {2, 5};
 
-const float Tower::TowerFireRate[] = {0.4f, 1.4f}; // reload time [s]
+const int Tower::TowerArmorPenetration[] = {1, 0};
+const int Tower::TowerArmorPenetrationIncrease[] = {1, 3};
+
+const float Tower::TowerFireRate[] = {0.4f, 1.3f}; // reload time [s]
+const float Tower::TowerFireRateIncrease[] = {0.06f, 0.35f};
+
 const float Tower::TowerFireRange[] = { 140.f, 180.f }; // !WITHOUT SCALING! needs to be done elsewhere
+const float Tower::TowerFireRangeIncrease[] = { 40.f, 36.f };
 
 const int Tower::TowerUpgradeCost[] = { 75, 50, 65, 100 };
 
-const int Tower::TowerUpgradeLimit[TowerTypeCount][UpgradesCount] = { {5, 3, 6, 6}, {10, 2, 9, 9} };
+const int Tower::TowerUpgradeLimit[TowerTypeCount][UpgradesCount] = { {2, 3, 4, 2}, {4, 1, 2, 3} };
 
 
 Tower::Tower(Game* game0, int type0) : upgrades{}, game(game0), sold(false), type(type0)

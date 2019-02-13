@@ -36,7 +36,7 @@ Menu::Menu(App& app0) : RenderingScene(app0)
 		buttonText[i].setCharacterSize(72);
 		buttonText[i].setString(buttonNames[i]);
 
-		Vector2f newTextOrigin = { buttonText[i].getLocalBounds().width / 2.f, buttonText[i].getLocalBounds().height / 2.f + 24.f };
+		Vector2f newTextOrigin = { buttonText[i].getLocalBounds().width / 2.f, buttonText[i].getLocalBounds().height / 2.f + 12.f };
 		buttonText[i].setOrigin(newTextOrigin);
 
 		buttonText[i].setScale(scale, scale);

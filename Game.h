@@ -5,6 +5,8 @@
 #include <vector>
 #include "RenderingScene.h"
 
+#define MAPS 7
+
 #define SELECTION_COLOR Color(0, 255, 0, 50)
 #define REWARD_TEXT_COLOR Color(10, 100, 10, 255)
 #define BUTTON_COLOR Color(200, 200, 20, 150)
@@ -59,6 +61,7 @@ enum controllers
 class Game : public RenderingScene
 {
 private:
+	bool level[MAPS];
 
 	bool isPaused;
 
@@ -70,6 +73,8 @@ private:
 	int spawnLimit;
 	int dollars;
 	int livesLeft;
+
+	int infoIndex;
 
 	int minionId;
 
@@ -103,6 +108,8 @@ private:
 	Texture tGameInterface;
 	Sprite gameInterface;
 
+	Time fakeMinionTime;
+
 	Tower* fakeTower;
 	bool displayFakeTower;
 
@@ -129,6 +136,8 @@ public:
 
 	int checkCursorPosition(Vector2i pos);
 
+	void changeMap();
+
 	void updateLogic();
 
 	void cameraMoving();
@@ -148,6 +157,14 @@ public:
 	void printInterface();
 
 	void printButtons();
+
+	void printInfo();
+
+	void printPathInfo(Vector2f pos0);
+
+	void printFreeCellInfo(Vector2f pos0);
+
+	void printOccupiedCellInfo(Vector2f pos0);
 
 	void printTiles();
 
